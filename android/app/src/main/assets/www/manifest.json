@@ -1,9 +1,0 @@
-{
-  "name": "MasjidPH Navigator",
-  "short_name": "MasjidPH",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f4f8f5",
-  "theme_color": "#064e3b",
-  "description": "Philippine mosque finder and prayer companion"
-}
