@@ -66,17 +66,20 @@ public final class PrayerReminderReceiver extends BroadcastReceiver {
 
     static void schedule(Context context, String prayer, long atMillis) {
         if (!isKnownPrayer(prayer)) return;
+        SharedPreferences prefs = context.getSharedPreferences(
+                PrayerScheduleWorker.PREFS_NAME, Context.MODE_PRIVATE);
         android.app.AlarmManager alarms =
                 (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (alarms == null) return;
         PendingIntent pending = alarmPendingIntent(context, prayer, PendingIntent.FLAG_UPDATE_CURRENT);
-        // Clear a previous schedule first so moving location/time cannot leave
-        // an obsolete reminder active when the new prayer time has already passed.
-        alarms.cancel(pending);
-        if (atMillis <= System.currentTimeMillis()) {
+        if (!prefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false)
+                || atMillis <= System.currentTimeMillis() || alarms == null) {
+            if (alarms != null) alarms.cancel(pending);
             pending.cancel();
             return;
         }
+        // Clear a previous schedule first so moving location/time cannot leave
+        // an obsolete reminder active when the new prayer time has already passed.
+        alarms.cancel(pending);
         if (Build.VERSION.SDK_INT >= 23) {
             alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, atMillis, pending);
         } else {
