@@ -893,7 +893,7 @@ public class MainActivity extends Activity {
         moderationButton.setOnClickListener(v -> showModerationQueue());
         chatCard.addView(moderationButton);
         FirebaseUser moderationUser = auth.getCurrentUser();
-        moderationUser.getIdTokenResult(true).addOnSuccessListener(token -> {
+        moderationUser.getIdToken(true).addOnSuccessListener(token -> {
             if (Boolean.TRUE.equals(token.getClaims().get("admin"))
                     && moderationButton.getParent() != null) {
                 moderationButton.setVisibility(View.VISIBLE);
@@ -947,7 +947,7 @@ public class MainActivity extends Activity {
             message("Sign in with an administrator account to review reports.");
             return;
         }
-        user.getIdTokenResult(true).addOnSuccessListener(token -> {
+        user.getIdToken(true).addOnSuccessListener(token -> {
             if (!Boolean.TRUE.equals(token.getClaims().get("admin"))) {
                 message("This account is not authorized to moderate reports.");
                 return;
