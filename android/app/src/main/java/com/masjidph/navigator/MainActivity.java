@@ -881,13 +881,13 @@ public class MainActivity extends Activity {
         }
         messageCard.setOnLongClickListener(v -> {
             if (mine) {
-                String[] actions = {"Report message", "Delete my message"};
+                // Firestore rules intentionally prohibit reporting one's own message.
                 new android.app.AlertDialog.Builder(MainActivity.this)
                         .setTitle("Message options")
-                        .setItems(actions, (dialog, which) -> {
-                            if (which == 0) reportCommunityMessage(mosqueId, document.getId());
-                            else deleteCommunityMessage(mosqueId, document.getId());
-                        }).show();
+                        .setMessage("Delete your message?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Delete", (dialog, which) -> deleteCommunityMessage(mosqueId, document.getId()))
+                        .show();
             } else {
                 new android.app.AlertDialog.Builder(MainActivity.this)
                         .setTitle("Report message")
