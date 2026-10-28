@@ -12,11 +12,11 @@ The `security-hardening` branch has a security gate that runs MobSF source analy
 
 - **Authentication:** Firebase email/password registration, sign-in, and password-reset flow; unverified password accounts are sent a verification link and signed out, and Firestore rules independently require verified identities for profile and community access. Native Google sign-in uses Android Credential Manager, pending Firebase OAuth setup.
 - **Mosque directory:** Search and filter, optional location sorting, Firestore directory records, and launch directions in Google Maps. Starter coordinates are approximate, clearly labelled, and should be locally verified.
-- **Prayer times:** On-demand location-based time estimates using the AlAdhan HTTPS API. Confirm official times with a local masjid.
+- **Prayer times and reminders:** Location-based estimates using the AlAdhan HTTPS API. Optional daily local notifications refresh from the saved location through WorkManager; Android notification permission is required, background delivery is best-effort and can be delayed by battery policies. Confirm official times with a local masjid.
 - **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available. The compass rose now rotates with corrected true heading; bearing math has automated unit tests.
 - **Profiles:** Member profile read/write with client-side length limits and Firestore ownership rules.
 - **Community:** Mosque-specific text chat, realtime reads, own-message deletion, and reporting. Rooms are currently open to all signed-in users; membership approval, spam controls, and an administrator moderation interface are not yet implemented.
-- **Not complete:** Native Google sign-in, reliable background prayer alarms/notifications, in-app map tiles, admin tooling, and physical-device / release testing.
+- **Not complete:** Native Google sign-in pending OAuth setup, production-grade exact prayer alarms (current alerts are best-effort), in-app map tiles, admin/moderation tooling, and physical-device / release testing.
 
 Do not describe the unfinished items above as implemented. More security and functionality work remains before the app can be treated as ready for general use.
 
