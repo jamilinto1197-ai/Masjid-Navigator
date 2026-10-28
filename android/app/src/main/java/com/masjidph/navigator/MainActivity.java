@@ -3,6 +3,7 @@ package com.masjidph.navigator;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
@@ -21,12 +22,14 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
@@ -88,7 +91,8 @@ public class MainActivity extends Activity {
     private final int bg = Color.rgb(245, 249, 246);
 
     private LinearLayout root, header, body, nav, mosqueResults;
-    private TextView headerSubtitle, status, mosqueStatus, prayerStatus, prayerTimes, qiblaStatus, qiblaHeading;
+    private TextView headerSubtitle, status, mosqueStatus, prayerStatus, prayerTimes, qiblaStatus, qiblaHeading, prayerReminderStatus;
+    private CheckBox prayerReminderToggle;
     private EditText emailInput, passwordInput, nameInput, locationInput, bioInput, mosqueSearch;
     private Button mosqueLocateButton;
     private Spinner communitySpinner;
@@ -514,6 +518,30 @@ public class MainActivity extends Activity {
                 12, Color.rgb(226, 247, 235), false));
         body.addView(prayerCard);
 
+        LinearLayout reminderCard = card();
+        prayerReminderToggle = new CheckBox(this);
+        prayerReminderToggle.setText("Enable daily prayer reminders");
+        prayerReminderToggle.setTextColor(ink);
+        SharedPreferences reminderPrefs = getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE);
+        boolean remindersEnabled = reminderPrefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false);
+        prayerReminderToggle.setChecked(remindersEnabled);
+        reminderCard.addView(prayerReminderToggle);
+        prayerReminderStatus = text(remindersEnabled
+                ? "Daily reminders are enabled. Android battery policies may delay delivery."
+                : "Reminders are off. Fetch prayer times once to save your location.",
+                12, muted, false);
+        reminderCard.addView(prayerReminderStatus);
+        prayerReminderToggle.setOnCheckedChangeListener((view, enabled) -> {
+            if (enabled && Build.VERSION.SDK_INT >= 33
+                    && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1002);
+                return;
+            }
+            if (enabled) enablePrayerReminders();
+            else disablePrayerReminders();
+        });
+        body.addView(reminderCard);
+
         body.addView(gap(12));
         LinearLayout shortcuts = card();
         shortcuts.addView(text("Your community", 20, ink, true));
@@ -539,6 +567,17 @@ public class MainActivity extends Activity {
     }
 
     private void fetchPrayerTimes(Location location) {
+        SharedPreferences reminderPrefs = getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE);
+        reminderPrefs.edit()
+                .putString(PrayerScheduleWorker.KEY_LATITUDE, String.format(Locale.US, "%.6f", location.getLatitude()))
+                .putString(PrayerScheduleWorker.KEY_LONGITUDE, String.format(Locale.US, "%.6f", location.getLongitude()))
+                .apply();
+        if (reminderPrefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false)) {
+            PrayerScheduleWorker.enqueueNow(this);
+            if (prayerReminderStatus != null) {
+                prayerReminderStatus.setText("Updating your daily prayer reminders from this location…");
+            }
+        }
         ioExecutor.execute(() -> {
             HttpURLConnection connection = null;
             try {
@@ -1141,8 +1180,42 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void enablePrayerReminders() {
+        SharedPreferences prefs = getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE);
+        prefs.edit().putBoolean(PrayerScheduleWorker.KEY_ENABLED, true).apply();
+        if (prefs.contains(PrayerScheduleWorker.KEY_LATITUDE)
+                && prefs.contains(PrayerScheduleWorker.KEY_LONGITUDE)) {
+            PrayerScheduleWorker.enqueueNow(this);
+            if (prayerReminderStatus != null) {
+                prayerReminderStatus.setText("Daily reminders enabled. Android battery policies may delay delivery.");
+            }
+        } else if (prayerReminderStatus != null) {
+            prayerReminderStatus.setText("Reminders are enabled. Tap Get prayer times once to save your location and schedule alerts.");
+        }
+    }
+
+    private void disablePrayerReminders() {
+        getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE)
+                .edit().putBoolean(PrayerScheduleWorker.KEY_ENABLED, false).apply();
+        PrayerScheduleWorker.cancel(this);
+        if (prayerReminderStatus != null) prayerReminderStatus.setText("Prayer reminders are off.");
+    }
+
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1002) {
+            boolean granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            if (granted) {
+                enablePrayerReminders();
+            } else {
+                if (prayerReminderToggle != null) prayerReminderToggle.setChecked(false);
+                disablePrayerReminders();
+                if (prayerReminderStatus != null) {
+                    prayerReminderStatus.setText("Notifications were not allowed. Enable them in Android Settings to use prayer reminders.");
+                }
+            }
+            return;
+        }
         if (requestCode == 1001) {
             boolean granted = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                     || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
