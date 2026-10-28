@@ -1,0 +1,6 @@
+{
+  "appId": "com.masjidph.navigator",
+  "appName": "MasjidPH Navigator",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}
