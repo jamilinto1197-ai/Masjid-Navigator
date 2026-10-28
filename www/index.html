@@ -181,7 +181,7 @@ if(configured) {
       signedInUser = user || null;
       signedOutEl.hidden=!!user;
       signedInEl.hidden=!user;
-      document.getElementById('accountCard').hidden=!!user;
+      document.getElementById('accountCard').hidden=false;
       document.getElementById('appContent').hidden=!user;
       document.getElementById('authUserEmail').textContent=user?.email||'';
       if(user) {
