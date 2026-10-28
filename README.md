@@ -10,7 +10,7 @@ The `security-hardening` branch targets Android 16 (API 36) using AGP 8.10.1 and
 
 ## Native feature status on this branch
 
-- **Authentication:** Firebase email/password registration, sign-in, and password-reset flow; unverified password accounts are sent a verification link and signed out, and Firestore rules independently require verified identities for profile and community access. Native Google sign-in uses Android Credential Manager, pending Firebase OAuth setup.
+- **Authentication:** Firebase email/password registration, sign-in, and password-reset flow; unverified password accounts remain on a verification screen with explicit resend, re-check, and switch-account actions. Resends have a client-side cooldown, and Firestore rules independently require verified identities for profile and community access. Native Google sign-in uses Android Credential Manager, pending Firebase OAuth setup.
 - **Mosque directory:** Search and filter, optional location sorting, Firestore directory records, and launch directions in Google Maps. Starter coordinates are approximate, clearly labelled, and should be locally verified.
 - **Prayer times and reminders:** Location-based estimates using the AlAdhan HTTPS API. Optional daily local notifications refresh from the saved location through WorkManager; Android notification permission is required, background delivery is best-effort and can be delayed by battery policies. Confirm official times with a local masjid.
 - **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available. The compass rose now rotates with corrected true heading; bearing math has automated unit tests.

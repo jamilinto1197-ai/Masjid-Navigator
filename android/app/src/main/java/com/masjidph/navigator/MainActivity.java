@@ -230,18 +230,9 @@ public class MainActivity extends Activity {
                     return;
                 }
                 if (requiresEmailVerification(currentUser)) {
+                    // Do not resend verification messages automatically on auth-state callbacks.
+                    // The login screen offers an explicit, rate-limited resend action.
                     showLogin();
-                    currentUser.sendEmailVerification().addOnCompleteListener(this, task -> {
-                        FirebaseUser latestUser = firebaseAuth.getCurrentUser();
-                        if (latestUser != null && requiresEmailVerification(latestUser)) {
-                            firebaseAuth.signOut();
-                        }
-                        if (status != null) {
-                            status.setText(task.isSuccessful()
-                                    ? "Verify your email using the link we sent. You have been signed out until verification."
-                                    : "Your email is not verified. We could not resend the link; check your inbox or try again later.");
-                        }
-                    });
                     return;
                 }
                 showApp();
@@ -359,6 +350,29 @@ public class MainActivity extends Activity {
         reset.setOnClickListener(v -> resetPassword());
         status = text(firebaseReady ? "" : firebaseConfigError, 13, Color.rgb(170, 45, 45), false);
         form.addView(status);
+
+        FirebaseUser currentUser = auth == null ? null : auth.getCurrentUser();
+        if (requiresEmailVerification(currentUser)) {
+            status.setText("Your email is not verified yet. Verify it using the link in your inbox before opening your account.");
+
+            Button resendVerification = button("Resend verification email");
+            resendVerification.setBackground(round(Color.WHITE, 14));
+            resendVerification.setTextColor(green);
+            form.addView(resendVerification);
+            resendVerification.setOnClickListener(v -> sendVerificationEmail(currentUser));
+
+            Button checkVerification = button("I've verified my email");
+            form.addView(checkVerification);
+            checkVerification.setOnClickListener(v -> refreshEmailVerification(currentUser));
+
+            Button useAnotherAccount = button("Sign out and use another account");
+            useAnotherAccount.setBackground(round(Color.WHITE, 14));
+            useAnotherAccount.setTextColor(green);
+            form.addView(useAnotherAccount);
+            useAnotherAccount.setOnClickListener(v -> {
+                if (auth != null) auth.signOut();
+            });
+        }
         body.addView(form);
         body.addView(gap(12));
         body.addView(text("By continuing, you agree to follow each masjid community's rules. Be respectful and protect your personal information.",
@@ -373,6 +387,85 @@ public class MainActivity extends Activity {
         return false;
     }
 
+    private static final long VERIFICATION_RESEND_COOLDOWN_MS = 60_000L;
+    private static final String AUTH_SECURITY_PREFS = "auth_security";
+    private static final String LAST_VERIFICATION_EMAIL_SENT_AT = "last_verification_email_sent_at";
+
+    private void sendVerificationEmail(FirebaseUser user) {
+        if (user == null || auth == null
+                || auth.getCurrentUser() == null
+                || !auth.getCurrentUser().getUid().equals(user.getUid())) {
+            message("Sign in again before requesting a verification email.");
+            return;
+        }
+
+        SharedPreferences prefs = getSharedPreferences(AUTH_SECURITY_PREFS, MODE_PRIVATE);
+        long lastSentAt = prefs.getLong(LAST_VERIFICATION_EMAIL_SENT_AT, 0L);
+        long remaining = VERIFICATION_RESEND_COOLDOWN_MS - (System.currentTimeMillis() - lastSentAt);
+        if (lastSentAt > 0L && remaining > 0L) {
+            long remainingSeconds = Math.max(1L, (remaining + 999L) / 1000L);
+            if (status != null) {
+                status.setText("Please wait " + remainingSeconds
+                        + " seconds before requesting another verification email.");
+            }
+            return;
+        }
+
+        if (status != null) status.setText("Sending verification email…");
+        user.sendEmailVerification().addOnCompleteListener(this, task -> {
+            if (task.isSuccessful()) {
+                prefs.edit().putLong(LAST_VERIFICATION_EMAIL_SENT_AT,
+                        System.currentTimeMillis()).apply();
+            }
+            if (status == null || status.getParent() == null) return;
+            status.setText(task.isSuccessful()
+                    ? "Verification email sent. Open the link in your inbox, then return and tap “I've verified my email”."
+                    : "Could not send the verification email. Check your connection and try again later.");
+        });
+    }
+
+    private void refreshEmailVerification(FirebaseUser user) {
+        if (user == null || auth == null) {
+            message("Sign in again to check email verification.");
+            return;
+        }
+        if (status != null) status.setText("Checking your email verification…");
+        user.reload().addOnCompleteListener(this, reloadTask -> {
+            FirebaseUser refreshedUser = auth.getCurrentUser();
+            if (!reloadTask.isSuccessful() || refreshedUser == null
+                    || !refreshedUser.getUid().equals(user.getUid())) {
+                if (status != null && status.getParent() != null) {
+                    status.setText("Could not refresh your account. Check your connection and try again.");
+                }
+                return;
+            }
+            if (!refreshedUser.isEmailVerified()) {
+                if (status != null && status.getParent() != null) {
+                    status.setText("Your email still appears unverified. Open the verification link from your inbox, then try again.");
+                }
+                return;
+            }
+
+            // Refresh Firebase's ID token so Firestore receives the current email_verified claim.
+            refreshedUser.getIdToken(true)
+                    .addOnSuccessListener(token -> {
+                        FirebaseUser signedInUser = auth.getCurrentUser();
+                        if (signedInUser != null
+                                && signedInUser.getUid().equals(refreshedUser.getUid())
+                                && signedInUser.isEmailVerified()) {
+                            showApp();
+                        } else if (status != null && status.getParent() != null) {
+                            status.setText("Your account changed while checking verification. Please sign in again.");
+                        }
+                    })
+                    .addOnFailureListener(error -> {
+                        if (status != null && status.getParent() != null) {
+                            status.setText("Your email is verified, but the security token could not refresh. Check your connection and try again.");
+                        }
+                    });
+        });
+    }
+
     private void authenticate(boolean create) {
         if (!firebaseReady || auth == null) { message(firebaseConfigError); return; }
         String email = emailInput.getText().toString().trim();
@@ -384,8 +477,14 @@ public class MainActivity extends Activity {
         status.setText(create ? "Creating your account…" : "Signing in…");
         if (create) {
             auth.createUserWithEmailAndPassword(email, pass).addOnCompleteListener(this, task -> {
-                // The auth-state listener sends the verification link and signs out unverified password accounts.
-                if (!task.isSuccessful()) message(authMessage(task.getException()));
+                if (!task.isSuccessful()) {
+                    message(authMessage(task.getException()));
+                    return;
+                }
+                FirebaseUser newUser = auth.getCurrentUser();
+                if (requiresEmailVerification(newUser)) {
+                    sendVerificationEmail(newUser);
+                }
             });
         } else {
             auth.signInWithEmailAndPassword(email, pass).addOnCompleteListener(this,
