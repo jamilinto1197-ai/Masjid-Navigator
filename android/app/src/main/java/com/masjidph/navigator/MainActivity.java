@@ -1225,6 +1225,8 @@ public class MainActivity extends Activity {
         b.setAllCaps(false);
         b.setTextSize(15);
         b.setTextColor(Color.WHITE);
+        // Reject taps obscured by another window to reduce overlay/tapjacking risk.
+        b.setFilterTouchesWhenObscured(true);
         b.setBackground(round(teal, 14));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
         p.topMargin = dp(8);
