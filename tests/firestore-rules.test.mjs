@@ -7,6 +7,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
@@ -46,7 +47,9 @@ try {
   const anonymous = env.unauthenticatedContext().firestore();
   const alice = env.authenticatedContext("alice", { email_verified: true }).firestore();
   const bob = env.authenticatedContext("bob", { email_verified: true }).firestore();
+  const admin = env.authenticatedContext("moderator", { email_verified: true, admin: true }).firestore();
   const unverified = env.authenticatedContext("unverified", { email_verified: false }).firestore();
+  const unverifiedAdmin = env.authenticatedContext("unverified-admin", { email_verified: false, admin: true }).firestore();
 
   await test("mosque directory is publicly readable", async () => {
     await assertSucceeds(getDocs(collection(anonymous, "mosques")));
@@ -237,6 +240,14 @@ try {
     }));
   });
 
+  await test("only a verified admin can read reports including across mosque rooms", async () => {
+    await assertFails(getDocs(collection(alice, "mosques", "test-room", "reports")));
+    await assertFails(getDocs(collectionGroup(alice, "reports")));
+    await assertSucceeds(getDocs(collection(admin, "mosques", "test-room", "reports")));
+    await assertSucceeds(getDocs(collectionGroup(admin, "reports")));
+    await assertFails(getDocs(collectionGroup(unverifiedAdmin, "reports")));
+  });
+
   await test("reports are private and a user cannot file a duplicate report", async () => {
     await assertFails(getDocs(collection(alice, "mosques", "test-room", "reports")));
     await assertFails(setDoc(doc(bob, "mosques", "test-room", "reports", "bob_message-1"), {
@@ -250,6 +261,24 @@ try {
   await test("a user can delete their own message but not another user's message", async () => {
     await assertFails(deleteDoc(doc(bob, "mosques", "test-room", "messages", "message-1")));
     await assertSucceeds(deleteDoc(doc(alice, "mosques", "test-room", "messages", "message-1")));
+  });
+
+  await test("a verified admin can delete another member's message and close a report", async () => {
+    await assertSucceeds(setDoc(doc(alice, "mosques", "test-room", "messages", "admin-delete-me"), {
+      authorUid: "alice",
+      authorName: "Alice",
+      text: "Inappropriate content",
+      createdAt: serverTimestamp()
+    }));
+    await assertSucceeds(setDoc(doc(bob, "mosques", "test-room", "reports", "bob_admin-delete-me"), {
+      reporterUid: "bob",
+      messageId: "admin-delete-me",
+      reason: "Abuse or harassment",
+      createdAt: serverTimestamp()
+    }));
+    await assertFails(deleteDoc(doc(unverifiedAdmin, "mosques", "test-room", "messages", "admin-delete-me")));
+    await assertSucceeds(deleteDoc(doc(admin, "mosques", "test-room", "messages", "admin-delete-me")));
+    await assertSucceeds(deleteDoc(doc(admin, "mosques", "test-room", "reports", "bob_admin-delete-me")));
   });
 } finally {
   await env.cleanup();
