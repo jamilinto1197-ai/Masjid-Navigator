@@ -12,7 +12,9 @@ service cloud.firestore {
     // The admin claim can only be set by a trusted Firebase Admin SDK environment.
     // Never infer admin access from a client-editable profile field.
     function isAdmin() {
-      return verifiedMember() && request.auth.token.admin == true;
+      return verifiedMember()
+        && request.auth.token.keys().hasAny(['admin'])
+        && request.auth.token.admin == true;
     }
 
     function owns(userId) {
@@ -175,6 +177,14 @@ service cloud.firestore {
         && validTimestamp(request.resource.data.updatedAt)
         && validAlarmSettings(request.resource.data.alarmSettings);
       allow delete: if false;
+    }
+
+    // Collection-group queries must be authorized by a recursive match as well.
+    // Only a verified server-assigned admin claim may read or delete reports,
+    // regardless of the parent document path.
+    match /{parentPath=**}/reports/{reportId} {
+      allow get, list: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Deny every collection not deliberately exposed above.
