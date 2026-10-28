@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function validTimestamp(value) {
+      return value is int || value is string;
+    }
+
+    function validProfile(data) {
+      return data.keys().hasOnly(['displayName', 'location', 'bio', 'updatedAt'])
+        && data.keys().hasAll(['displayName', 'location', 'bio', 'updatedAt'])
+        && data.displayName is string
+        && data.displayName.size() > 0
+        && data.displayName.size() <= 60
+        && data.location is string
+        && data.location.size() <= 100
+        && data.bio is string
+        && data.bio.size() <= 180
+        && validTimestamp(data.updatedAt);
+    }
+
+    function validPrayerFlags(prayers) {
+      return prayers is map
+        && prayers.keys().hasOnly(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'])
+        && prayers.keys().hasAll(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'])
+        && prayers.Fajr is bool
+        && prayers.Dhuhr is bool
+        && prayers.Asr is bool
+        && prayers.Maghrib is bool
+        && prayers.Isha is bool;
+    }
+
+    function validAlarmSettings(settings) {
+      return settings is map
+        && settings.keys().hasOnly([
+          'prayers', 'tune', 'offset', 'suhoor', 'iftar',
+          'ramadanOnly', 'suhoorOffset'
+        ])
+        && settings.keys().hasAll([
+          'prayers', 'tune', 'offset', 'suhoor', 'iftar',
+          'ramadanOnly', 'suhoorOffset'
+        ])
+        && validPrayerFlags(settings.prayers)
+        && settings.tune in ['adhan', 'soft', 'beep']
+        && (settings.offset is int || settings.offset is float)
+        && settings.offset >= -60
+        && settings.offset <= 60
+        && settings.suhoor is bool
+        && settings.iftar is bool
+        && settings.ramadanOnly is bool
+        && (settings.suhoorOffset is int || settings.suhoorOffset is float)
+        && settings.suhoorOffset >= 1
+        && settings.suhoorOffset <= 180;
+    }
+
+    // Mosque directory records are curated by trusted administrators.
+    // Client apps may read listings, but must never create or alter them.
+    match /mosques/{mosqueId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    // Each member can access and update only their own profile document.
+    match /users/{userId} {
+      allow get: if owns(userId);
+      allow list: if false;
+      allow create, update: if owns(userId) && validProfile(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Prayer/alarm preferences may be read and written by their owner only.
+    match /userSettings/{userId} {
+      allow get: if owns(userId);
+      allow list: if false;
+      allow create, update: if owns(userId)
+        && request.resource.data.keys().hasOnly(['alarmSettings', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['alarmSettings', 'updatedAt'])
+        && validTimestamp(request.resource.data.updatedAt)
+        && validAlarmSettings(request.resource.data.alarmSettings);
+      allow delete: if false;
+    }
+
+    // Deny every collection not deliberately exposed above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
