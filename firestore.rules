@@ -66,11 +66,13 @@ service cloud.firestore {
       allow get, list: if true;
       allow create, update, delete: if false;
 
-      // Authenticated members can read public mosque discussion rooms.
+      // Authenticated members can read rooms only under a real directory entry.
       // Messages are immutable; authors can delete only their own messages.
       match /messages/{messageId} {
-        allow get, list: if signedIn();
+        allow get, list: if signedIn()
+          && exists(/databases/$(database)/documents/mosques/$(mosqueId));
         allow create: if signedIn()
+          && exists(/databases/$(database)/documents/mosques/$(mosqueId))
           && request.resource.data.keys().hasOnly(['authorUid', 'authorName', 'text', 'createdAt'])
           && request.resource.data.keys().hasAll(['authorUid', 'authorName', 'text', 'createdAt'])
           && request.resource.data.authorUid == request.auth.uid
