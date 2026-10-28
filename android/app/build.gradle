@@ -40,8 +40,14 @@ dependencyLocking {
 
 tasks.register("resolveAllDependenciesForSecurity") {
     doLast {
-        configurations.findAll { it.canBeResolved }.each { configuration ->
-            configuration.resolve()
+        // Resolve only the application compile/runtime graphs. Resolving every
+        // Android configuration also touches ambiguous androidTest variants.
+        ["debugCompileClasspath", "debugRuntimeClasspath",
+         "releaseCompileClasspath", "releaseRuntimeClasspath"].each { name ->
+            def configuration = configurations.findByName(name)
+            if (configuration != null && configuration.canBeResolved) {
+                configuration.resolve()
+            }
         }
     }
 }
