@@ -27,6 +27,10 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
+import android.text.InputType;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -37,7 +41,13 @@ import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.Query;
 
 import org.json.JSONObject;
 
@@ -68,6 +78,13 @@ public class MainActivity extends Activity {
     private TextView headerSubtitle, status, mosqueStatus, prayerStatus, prayerTimes, qiblaStatus, qiblaHeading;
     private EditText emailInput, passwordInput, nameInput, locationInput, bioInput, mosqueSearch;
     private Button mosqueLocateButton;
+    private Spinner communitySpinner;
+    private TextView communityStatus;
+    private LinearLayout communityMessageList;
+    private EditText communityMessageInput;
+    private ListenerRegistration communityListener;
+    private String activeCommunityId = "";
+    private final List<MosqueItem> communityMosques = new ArrayList<>();
     private FirebaseAuth auth;
     private FirebaseFirestore db;
     private String tab = "home";
@@ -98,6 +115,7 @@ public class MainActivity extends Activity {
     }
 
     private static final class MosqueItem {
+        final String documentId;
         final String name;
         final String city;
         final String province;
@@ -106,6 +124,11 @@ public class MainActivity extends Activity {
         final boolean starter;
 
         MosqueItem(String name, String city, String province, double latitude, double longitude, boolean starter) {
+            this("", name, city, province, latitude, longitude, starter);
+        }
+
+        MosqueItem(String documentId, String name, String city, String province, double latitude, double longitude, boolean starter) {
+            this.documentId = documentId == null ? "" : documentId;
             this.name = name == null || name.trim().isEmpty() ? "Masjid" : name.trim();
             this.city = city == null ? "" : city.trim();
             this.province = province == null ? "" : province.trim();
@@ -355,6 +378,7 @@ public class MainActivity extends Activity {
     private void renderTab(String which) {
         if (body == null) return;
         if (!"qibla".equals(which)) stopCompass();
+        if (!"community".equals(which)) stopCommunityListener();
         body.removeAllViews();
         tab = which;
         switch (which) {
@@ -518,7 +542,7 @@ public class MainActivity extends Activity {
                         Object lonRaw = firstPresent(document.get("lon"), document.get("lng"), document.get("longitude"));
                         double lat = toCoordinate(latRaw);
                         double lon = toCoordinate(lonRaw);
-                        loaded.add(new MosqueItem(name, city, province, lat, lon, false));
+                        loaded.add(new MosqueItem(document.getId(), name, city, province, lat, lon, false));
                     }
                     mosqueItems.clear();
                     mosqueItems.addAll(loaded);
@@ -649,22 +673,229 @@ public class MainActivity extends Activity {
     }
 
     private void community() {
-        LinearLayout c = card();
-        c.setBackground(round(green, 20));
-        c.addView(text("Every masjid can have its own community", 22, Color.WHITE, true));
-        c.addView(gap(8));
-        c.addView(text("Announcements and member conversations should belong to the right local community.",
-                14, Color.rgb(226, 247, 235), false));
-        body.addView(c);
-        body.addView(gap(12));
-        LinearLayout note = card();
-        note.addView(text("Community chat is not enabled yet", 19, ink, true));
-        note.addView(text("Chat is intentionally not exposed until membership checks, reporting, moderation, and matching Firestore rules are implemented. This avoids opening a public message-write endpoint.",
-                14, muted, false));
-        Button b = button("Find a masjid");
-        note.addView(b);
-        b.setOnClickListener(v -> { tab = "explore"; renderTab(tab); buildNav(); });
-        body.addView(note);
+        LinearLayout intro = card();
+        intro.setBackground(round(green, 20));
+        intro.addView(text("Your masjid, your community", 22, Color.WHITE, true));
+        intro.addView(gap(8));
+        intro.addView(text("Choose a published masjid to open its live discussion room. Rooms are currently open to signed-in members; keep messages respectful and never share private information.",
+                13, Color.rgb(226, 247, 235), false));
+        body.addView(intro);
+
+        LinearLayout chatCard = card();
+        chatCard.addView(text("Masjid discussion", 19, ink, true));
+        communityStatus = text("Loading published masjid rooms…", 13, muted, false);
+        chatCard.addView(communityStatus);
+        communitySpinner = new Spinner(this);
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(-1, -2);
+        spinnerParams.topMargin = dp(8);
+        chatCard.addView(communitySpinner, spinnerParams);
+
+        ScrollView messageScroll = new ScrollView(this);
+        communityMessageList = new LinearLayout(this);
+        communityMessageList.setOrientation(LinearLayout.VERTICAL);
+        communityMessageList.addView(text("Choose a masjid to load its messages.", 14, muted, false));
+        messageScroll.addView(communityMessageList);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(-1, dp(300));
+        scrollParams.topMargin = dp(10);
+        chatCard.addView(messageScroll, scrollParams);
+
+        communityMessageInput = input("Write a message (max 1000 characters)", false);
+        communityMessageInput.setSingleLine(false);
+        communityMessageInput.setMinLines(2);
+        communityMessageInput.setMaxLines(4);
+        communityMessageInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        communityMessageInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1000)});
+        chatCard.addView(communityMessageInput);
+        Button send = button("Send message");
+        chatCard.addView(send);
+        send.setOnClickListener(v -> sendCommunityMessage());
+        chatCard.addView(text("Long-press a message to report it, or to delete your own message. Reports are stored for administrator review; an administrator moderation console is not yet included.",
+                12, muted, false));
+        body.addView(chatCard);
+
+        if (db == null || auth == null || auth.getCurrentUser() == null) {
+            communityStatus.setText("Community chat requires Firebase configuration and a signed-in account.");
+            communityMessageList.removeAllViews();
+            communityMessageList.addView(text("No chat connection.", 14, muted, false));
+            return;
+        }
+        db.collection("mosques").limit(250).get().addOnSuccessListener(snapshot -> {
+            List<MosqueItem> rooms = new ArrayList<>();
+            for (QueryDocumentSnapshot document : snapshot) {
+                String name = firstNonEmpty(document.getString("name"), document.getString("mosqueName"), "Masjid");
+                String city = firstNonEmpty(document.getString("city"), document.getString("addressCity"), "");
+                String province = firstNonEmpty(document.getString("province"), document.getString("region"), "");
+                rooms.add(new MosqueItem(document.getId(), name, city, province, Double.NaN, Double.NaN, false));
+            }
+            communityMosques.clear();
+            communityMosques.addAll(rooms);
+            List<String> labels = new ArrayList<>();
+            for (MosqueItem mosque : rooms) {
+                String place = mosque.city + (mosque.city.isEmpty() || mosque.province.isEmpty() ? "" : ", ") + mosque.province;
+                labels.add(place.isEmpty() ? mosque.name : mosque.name + " · " + place);
+            }
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_item, labels);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            communitySpinner.setAdapter(adapter);
+            if (rooms.isEmpty()) {
+                communityStatus.setText("No mosque documents are published in Firestore yet. Chat rooms appear here once the directory is configured.");
+                communityMessageList.removeAllViews();
+                communityMessageList.addView(text("No published community rooms.", 14, muted, false));
+                return;
+            }
+            communityStatus.setText("Loaded " + rooms.size() + " community room(s). Select a masjid to read and send messages.");
+            communitySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (position >= 0 && position < communityMosques.size()) loadCommunityMessages(communityMosques.get(position));
+                }
+                @Override public void onNothingSelected(AdapterView<?> parent) {
+                    stopCommunityListener();
+                }
+            });
+            loadCommunityMessages(rooms.get(0));
+        }).addOnFailureListener(error -> {
+            communityStatus.setText("Could not load community rooms. Check Firebase configuration and Firestore read rules.");
+            communityMessageList.removeAllViews();
+            communityMessageList.addView(text("The directory is unavailable.", 14, muted, false));
+        });
+    }
+
+    private void loadCommunityMessages(MosqueItem mosque) {
+        stopCommunityListener();
+        if (db == null || mosque == null || mosque.documentId.isEmpty()) return;
+        activeCommunityId = mosque.documentId;
+        communityMessageList.removeAllViews();
+        communityMessageList.addView(text("Loading recent messages…", 14, muted, false));
+        communityListener = db.collection("mosques").document(mosque.documentId)
+                .collection("messages").orderBy("createdAt", Query.Direction.DESCENDING).limit(60)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (!activeCommunityId.equals(mosque.documentId) || communityMessageList == null) return;
+                    if (error != null) {
+                        communityMessageList.removeAllViews();
+                        communityMessageList.addView(text("Messages could not load. Check the deployed Firestore rules.", 14, muted, false));
+                        return;
+                    }
+                    communityMessageList.removeAllViews();
+                    if (snapshot == null || snapshot.isEmpty()) {
+                        communityMessageList.addView(text("No messages yet. Start a respectful conversation.", 14, muted, false));
+                        return;
+                    }
+                    List<DocumentSnapshot> messages = new ArrayList<>(snapshot.getDocuments());
+                    Collections.reverse(messages);
+                    for (DocumentSnapshot document : messages) addCommunityMessage(document, mosque.documentId);
+                });
+    }
+
+    private void addCommunityMessage(DocumentSnapshot document, String mosqueId) {
+        String bodyText = document.getString("text");
+        String authorName = firstNonEmpty(document.getString("authorName"), "Member", "");
+        String authorUid = document.getString("authorUid");
+        if (bodyText == null || bodyText.trim().isEmpty()) return;
+
+        LinearLayout messageCard = card();
+        boolean mine = auth != null && auth.getCurrentUser() != null
+                && auth.getCurrentUser().getUid().equals(authorUid);
+        messageCard.setBackground(round(mine ? pale : Color.WHITE, 14));
+        messageCard.addView(text(authorName + (mine ? " · You" : ""), 13, green, true));
+        messageCard.addView(text(bodyText, 15, ink, false));
+        Timestamp timestamp = document.getTimestamp("createdAt");
+        if (timestamp != null) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MMM d, h:mm a", Locale.getDefault());
+            dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Manila"));
+            messageCard.addView(text(dateFormat.format(timestamp.toDate()), 11, muted, false));
+        }
+        messageCard.setOnLongClickListener(v -> {
+            if (mine) {
+                String[] actions = {"Report message", "Delete my message"};
+                new android.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Message options")
+                        .setItems(actions, (dialog, which) -> {
+                            if (which == 0) reportCommunityMessage(mosqueId, document.getId());
+                            else deleteCommunityMessage(mosqueId, document.getId());
+                        }).show();
+            } else {
+                new android.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Report message")
+                        .setMessage("Send this message for administrator review?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Report", (dialog, which) -> reportCommunityMessage(mosqueId, document.getId()))
+                        .show();
+            }
+            return true;
+        });
+        communityMessageList.addView(messageCard);
+    }
+
+    private void sendCommunityMessage() {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) { message("Sign in to use community chat."); return; }
+        if (activeCommunityId.isEmpty()) { message("Select a published mosque room first."); return; }
+        String bodyText = communityMessageInput == null ? "" : communityMessageInput.getText().toString().trim();
+        if (bodyText.isEmpty()) { message("Type a message first."); return; }
+        if (bodyText.length() > 1000) { message("Messages must be 1000 characters or fewer."); return; }
+        String authorName = user.getDisplayName();
+        if (authorName == null || authorName.trim().isEmpty()) {
+            String email = user.getEmail();
+            authorName = email == null ? "Member" : email.split("@")[0];
+        }
+        if (authorName.length() > 60) authorName = authorName.substring(0, 60);
+        java.util.Map<String, Object> messageData = new java.util.HashMap<>();
+        messageData.put("authorUid", user.getUid());
+        messageData.put("authorName", authorName);
+        messageData.put("text", bodyText);
+        messageData.put("createdAt", FieldValue.serverTimestamp());
+        String mosqueId = activeCommunityId;
+        communityMessageInput.setEnabled(false);
+        db.collection("mosques").document(mosqueId).collection("messages").add(messageData)
+                .addOnSuccessListener(reference -> {
+                    if (communityMessageInput != null) {
+                        communityMessageInput.setText("");
+                        communityMessageInput.setEnabled(true);
+                    }
+                })
+                .addOnFailureListener(error -> {
+                    if (communityMessageInput != null) communityMessageInput.setEnabled(true);
+                    if (communityStatus != null) communityStatus.setText("Message was not sent. Check deployed Firestore rules and connection.");
+                });
+    }
+
+    private void reportCommunityMessage(String mosqueId, String messageId) {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) return;
+        String[] reasons = {"Spam", "Abuse or harassment", "Misleading information", "Other"};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Why are you reporting this message?")
+                .setItems(reasons, (dialog, which) -> {
+                    java.util.Map<String, Object> report = new java.util.HashMap<>();
+                    report.put("reporterUid", user.getUid());
+                    report.put("messageId", messageId);
+                    report.put("reason", reasons[which]);
+                    report.put("createdAt", FieldValue.serverTimestamp());
+                    db.collection("mosques").document(mosqueId).collection("reports").add(report)
+                            .addOnSuccessListener(reference -> message("Report submitted for administrator review."))
+                            .addOnFailureListener(error -> message("Report was not submitted. Check connection and Firestore rules."));
+                }).show();
+    }
+
+    private void deleteCommunityMessage(String mosqueId, String messageId) {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Delete your message?")
+                .setMessage("This action cannot be undone.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (dialog, which) ->
+                        db.collection("mosques").document(mosqueId).collection("messages").document(messageId).delete()
+                                .addOnFailureListener(error -> message("Message was not deleted. Check Firestore rules and connection.")))
+                .show();
+    }
+
+    private void stopCommunityListener() {
+        if (communityListener != null) {
+            communityListener.remove();
+            communityListener = null;
+        }
+        activeCommunityId = "";
     }
 
     private void qibla() {
@@ -978,6 +1209,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onDestroy() {
         stopCompass();
+        stopCommunityListener();
         if (locationManager != null && activeLocationListener != null) {
             try { locationManager.removeUpdates(activeLocationListener); } catch (SecurityException ignored) { }
         }
