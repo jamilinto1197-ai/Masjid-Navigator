@@ -82,5 +82,7 @@ dependencies {
     implementation 'androidx.credentials:credentials-play-services-auth:1.6.0'
     implementation 'com.google.android.libraries.identity.googleid:googleid:1.2.1'
     implementation 'androidx.work:work-runtime:2.10.1'
+    // WorkManager's public Worker API exposes ListenableFuture at compile time.
+    implementation 'com.google.guava:guava:33.7.2-android'
     implementation 'androidx.core:core:1.16.0'
 }
