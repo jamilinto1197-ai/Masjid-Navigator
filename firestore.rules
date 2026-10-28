@@ -5,8 +5,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function verifiedMember() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
     function owns(userId) {
-      return signedIn() && request.auth.uid == userId;
+      return verifiedMember() && request.auth.uid == userId;
     }
 
     function validTimestamp(value) {
@@ -68,9 +72,9 @@ service cloud.firestore {
       // Authenticated members can read rooms only under a real directory entry.
       // Messages are immutable; authors can delete only their own messages.
       match /messages/{messageId} {
-        allow get, list: if signedIn()
+        allow get, list: if verifiedMember()
           && exists(/databases/$(database)/documents/mosques/$(mosqueId));
-        allow create: if signedIn()
+        allow create: if verifiedMember()
           && exists(/databases/$(database)/documents/mosques/$(mosqueId))
           && request.resource.data.keys().hasOnly(['authorUid', 'authorName', 'text', 'createdAt'])
           && request.resource.data.keys().hasAll(['authorUid', 'authorName', 'text', 'createdAt'])
@@ -83,14 +87,14 @@ service cloud.firestore {
           && request.resource.data.text.size() <= 1000
           && request.resource.data.createdAt == request.time;
         allow update: if false;
-        allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+        allow delete: if verifiedMember() && resource.data.authorUid == request.auth.uid;
       }
 
       // Reports are write-only to ordinary members. Review them from a trusted
       // administrative environment; never expose other users' reports in-app.
       match /reports/{reportId} {
         allow get, list: if false;
-        allow create: if signedIn()
+        allow create: if verifiedMember()
           && request.resource.data.keys().hasOnly(['reporterUid', 'messageId', 'reason', 'createdAt'])
           && request.resource.data.keys().hasAll(['reporterUid', 'messageId', 'reason', 'createdAt'])
           && request.resource.data.reporterUid == request.auth.uid
