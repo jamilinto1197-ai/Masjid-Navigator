@@ -70,9 +70,48 @@ try {
     await assertSucceeds(getDocs(collection(anonymous, "mosques")));
   });
 
-  await test("clients cannot create or overwrite mosque directory records", async () => {
+  await test("ordinary members cannot create or overwrite mosque directory records", async () => {
     await assertFails(setDoc(doc(alice, "mosques", "forged"), { name: "Fake Masjid" }));
     await assertFails(setDoc(doc(alice, "mosques", "test-room"), { name: "Tampered" }));
+  });
+
+  await test("verified admins can publish only well-formed mosque listings", async () => {
+    const validListing = {
+      name: "Admin Masjid",
+      city: "Tubod",
+      province: "Lanao del Norte",
+      address: "Poblacion",
+      latitude: 8.0555,
+      longitude: 123.7907,
+      updatedAt: serverTimestamp(),
+      updatedBy: "moderator"
+    };
+    await assertSucceeds(setDoc(doc(admin, "mosques", "admin-masjid"), validListing));
+    await assertSucceeds(setDoc(doc(admin, "mosques", "admin-masjid"), {
+      ...validListing,
+      name: "Updated Admin Masjid",
+      updatedAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(alice, "mosques", "member-masjid"), {
+      ...validListing,
+      updatedBy: "alice",
+      updatedAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(admin, "mosques", "invalid-latitude"), {
+      ...validListing,
+      latitude: 91,
+      updatedAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(admin, "mosques", "unexpected-field"), {
+      ...validListing,
+      isAdmin: true,
+      updatedAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(unverifiedAdmin, "mosques", "unverified-admin"), {
+      ...validListing,
+      updatedBy: "unverified-admin",
+      updatedAt: serverTimestamp()
+    }));
   });
 
   const validProfile = {

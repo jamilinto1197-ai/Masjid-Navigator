@@ -776,6 +776,20 @@ public class MainActivity extends Activity {
                 }
             });
         });
+
+        Button addMosqueButton = button("Add a masjid listing (admins only)");
+        addMosqueButton.setVisibility(View.GONE);
+        body.addView(addMosqueButton);
+        addMosqueButton.setOnClickListener(v -> showAdminMosqueForm());
+        FirebaseUser directoryUser = auth == null ? null : auth.getCurrentUser();
+        if (directoryUser != null) {
+            directoryUser.getIdToken(true).addOnSuccessListener(token -> {
+                if (Boolean.TRUE.equals(token.getClaims().get("admin"))
+                        && addMosqueButton.getParent() != null) {
+                    addMosqueButton.setVisibility(View.VISIBLE);
+                }
+            });
+        }
         mosqueResults = new LinearLayout(this);
         mosqueResults.setOrientation(LinearLayout.VERTICAL);
         body.addView(mosqueResults);
@@ -823,6 +837,135 @@ public class MainActivity extends Activity {
         } else if (db == null && mosqueStatus != null) {
             mosqueStatus.setText("Firebase is not configured. Showing local starter listings; cloud listings are unavailable.");
         }
+    }
+
+    private void showAdminMosqueForm() {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) {
+            message("Sign in with an administrator account to add a masjid listing.");
+            return;
+        }
+
+        user.getIdToken(true).addOnSuccessListener(token -> {
+            if (!Boolean.TRUE.equals(token.getClaims().get("admin"))) {
+                message("This account is not authorized to manage mosque listings.");
+                return;
+            }
+
+            LinearLayout form = new LinearLayout(MainActivity.this);
+            form.setOrientation(LinearLayout.VERTICAL);
+            form.setPadding(dp(8), dp(4), dp(8), dp(4));
+
+            EditText nameField = input("Masjid name", false);
+            nameField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+            EditText cityField = input("City / municipality (optional)", false);
+            cityField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+            EditText provinceField = input("Province / region (optional)", false);
+            provinceField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+            EditText addressField = input("Street address / landmark (optional)", false);
+            addressField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(200)});
+            EditText latitudeField = input("Latitude (e.g. 8.0555)", false);
+            latitudeField.setInputType(InputType.TYPE_CLASS_NUMBER
+                    | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
+            EditText longitudeField = input("Longitude (e.g. 123.7907)", false);
+            longitudeField.setInputType(InputType.TYPE_CLASS_NUMBER
+                    | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
+
+            form.addView(text("Only verified administrators can publish directory records. Verify the coordinates before saving; users will still be advised to confirm the location locally.",
+                    13, muted, false));
+            form.addView(nameField);
+            form.addView(cityField);
+            form.addView(provinceField);
+            form.addView(addressField);
+            form.addView(latitudeField);
+            form.addView(longitudeField);
+            ScrollView scroll = new ScrollView(MainActivity.this);
+            scroll.addView(form);
+
+            android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Add a masjid listing")
+                    .setView(scroll)
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Publish listing", null)
+                    .create();
+            dialog.setOnShowListener(ignored -> {
+                Button save = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
+                save.setOnClickListener(v -> {
+                    String name = nameField.getText().toString().trim();
+                    String city = cityField.getText().toString().trim();
+                    String province = provinceField.getText().toString().trim();
+                    String address = addressField.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        nameField.setError("Enter a masjid name.");
+                        return;
+                    }
+                    if (city.length() > 100 || province.length() > 100 || address.length() > 200) {
+                        message("Shorten the city, province, or address field.");
+                        return;
+                    }
+                    final double latitude;
+                    final double longitude;
+                    try {
+                        latitude = Double.parseDouble(latitudeField.getText().toString().trim());
+                        longitude = Double.parseDouble(longitudeField.getText().toString().trim());
+                    } catch (NumberFormatException exception) {
+                        latitudeField.setError("Enter valid latitude and longitude values.");
+                        longitudeField.setError("Enter valid latitude and longitude values.");
+                        return;
+                    }
+                    if (!Double.isFinite(latitude) || latitude < -90.0 || latitude > 90.0) {
+                        latitudeField.setError("Latitude must be between -90 and 90.");
+                        return;
+                    }
+                    if (!Double.isFinite(longitude) || longitude < -180.0 || longitude > 180.0) {
+                        longitudeField.setError("Longitude must be between -180 and 180.");
+                        return;
+                    }
+
+                    save.setEnabled(false);
+                    FirebaseUser currentUser = auth == null ? null : auth.getCurrentUser();
+                    if (currentUser == null || db == null) {
+                        save.setEnabled(true);
+                        message("Your session ended. Sign in again and retry.");
+                        return;
+                    }
+                    currentUser.getIdToken(true).addOnSuccessListener(refreshedToken -> {
+                        if (!Boolean.TRUE.equals(refreshedToken.getClaims().get("admin"))) {
+                            save.setEnabled(true);
+                            message("Administrator access is no longer available for this account.");
+                            return;
+                        }
+                        java.util.Map<String, Object> listing = new java.util.HashMap<>();
+                        listing.put("name", name);
+                        listing.put("city", city);
+                        listing.put("province", province);
+                        listing.put("address", address);
+                        listing.put("latitude", latitude);
+                        listing.put("longitude", longitude);
+                        listing.put("updatedAt", FieldValue.serverTimestamp());
+                        listing.put("updatedBy", currentUser.getUid());
+
+                        db.collection("mosques").document().set(listing)
+                                .addOnSuccessListener(ignoredWrite -> {
+                                    dialog.dismiss();
+                                    mosqueLoadRequested = false;
+                                    tab = "explore";
+                                    renderTab(tab);
+                                    buildNav();
+                                })
+                                .addOnFailureListener(error -> {
+                                    save.setEnabled(true);
+                                    message("Could not publish the listing. Check administrator claims and deployed Firestore rules.");
+                                });
+                    }).addOnFailureListener(error -> {
+                        save.setEnabled(true);
+                        message("Could not refresh administrator access. Check your connection and try again.");
+                    });
+                });
+            });
+            dialog.show();
+        }).addOnFailureListener(error ->
+                message("Could not verify administrator access. Check your connection and try again."));
     }
 
     private void renderMosqueResults() {

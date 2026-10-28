@@ -34,6 +34,32 @@ service cloud.firestore {
                 && request.time >= get(path).data.lastMessageAt + duration.value(5, 's')));
     }
 
+    function validMosqueListing(data) {
+      return data.keys().hasOnly([
+          'name', 'city', 'province', 'address',
+          'latitude', 'longitude', 'updatedAt', 'updatedBy'
+        ])
+        && data.keys().hasAll([
+          'name', 'city', 'province', 'address',
+          'latitude', 'longitude', 'updatedAt', 'updatedBy'
+        ])
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 100
+        && data.city is string
+        && data.city.size() <= 100
+        && data.province is string
+        && data.province.size() <= 100
+        && data.address is string
+        && data.address.size() <= 200
+        && (data.latitude is int || data.latitude is float)
+        && data.latitude >= -90 && data.latitude <= 90
+        && (data.longitude is int || data.longitude is float)
+        && data.longitude >= -180 && data.longitude <= 180
+        && data.updatedAt == request.time
+        && data.updatedBy == request.auth.uid;
+    }
+
     function validTimestamp(value) {
       return value is int || value is string;
     }
@@ -84,11 +110,12 @@ service cloud.firestore {
                 && settings.suhoorOffset >= 1 && settings.suhoorOffset <= 180));
     }
 
-    // Mosque directory records are curated by trusted administrators.
-    // Client apps may read listings, but must never create or alter them.
+    // The mosque directory is public to read, but only verified admins can
+    // create/update records that pass the strict listing schema validator.
     match /mosques/{mosqueId} {
       allow get, list: if true;
-      allow create, update, delete: if false;
+      allow create, update: if isAdmin() && validMosqueListing(request.resource.data);
+      allow delete: if isAdmin();
 
       // Authenticated members can read rooms only under a real directory entry.
       // Messages are immutable; authors can delete only their own messages.
