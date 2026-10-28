@@ -15,7 +15,7 @@ The `security-hardening` branch has a security gate that runs MobSF source analy
 - **Prayer times and reminders:** Location-based estimates using the AlAdhan HTTPS API. Optional daily local notifications refresh from the saved location through WorkManager; Android notification permission is required, background delivery is best-effort and can be delayed by battery policies. Confirm official times with a local masjid.
 - **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available. The compass rose now rotates with corrected true heading; bearing math has automated unit tests.
 - **Profiles:** Member profile read/write with client-side length limits and Firestore ownership rules.
-- **Community:** Mosque-specific text chat, realtime reads, own-message deletion, and reporting. Rooms are currently open to all signed-in users; membership approval, spam controls, and an administrator moderation interface are not yet implemented.
+- **Community:** Mosque-specific text chat, realtime reads, own-message deletion, reporting, and a custom-claim-gated moderation queue. Ordinary members cannot read reports; verified admins can dismiss reports or delete reported messages. Rooms are open to verified signed-in users; membership approval, server-side spam/rate controls, and abuse escalation remain future work.
 - **Not complete:** Native Google sign-in pending OAuth setup, production-grade exact prayer alarms (current alerts are best-effort), in-app map tiles, admin/moderation tooling, and physical-device / release testing.
 
 Do not describe the unfinished items above as implemented. More security and functionality work remains before the app can be treated as ready for general use.
@@ -23,6 +23,20 @@ Do not describe the unfinished items above as implemented. More security and fun
 ## Firebase setup required
 
 The native app package is `com.masjidph.navigator` in Firebase project `masjid-109f3`. For password accounts, Firestore now requires the `email_verified` token claim; test clients must explicitly set it.
+
+Moderator access is controlled by the Firebase Auth custom claim `admin: true`, which the client cannot set. A trusted operator must assign it with the Firebase Admin SDK after verifying the person's identity and approval. Preserve existing claims when changing claims. Example for a trusted Node.js environment using Application Default Credentials:
+
+```js
+const admin = require("firebase-admin");
+admin.initializeApp({ credential: admin.credential.applicationDefault() });
+const user = await admin.auth().getUser("REPLACE_WITH_APPROVED_UID");
+await admin.auth().setCustomUserClaims(user.uid, {
+  ...(user.customClaims || {}),
+  admin: true
+});
+```
+
+Never run that snippet in the Android app or expose service-account credentials. Force-refresh the user's ID token or sign in again after claims change. The moderation UI is hidden for non-admin accounts and Firestore rules independently deny unauthorized reads and deletes.
 
 1. Register an Android app with that package name in Firebase Console.
 2. Copy its real `mobilesdk_app_id` value (the Android form is `1:885467340998:android:<hex-id>`). Do not use the Web app ID and do not make up an ID.
