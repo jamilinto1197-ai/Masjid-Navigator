@@ -290,6 +290,10 @@ try {
     await assertFails(getDocs(collectionGroup(unverifiedAdmin, "reports")));
   });
 
+  await test("members without an admin claim cannot delete reports", async () => {
+    await assertFails(deleteDoc(doc(alice, "mosques", "test-room", "reports", "bob_message-1")));
+  });
+
   await test("reports are private and a user cannot file a duplicate report", async () => {
     await assertFails(getDocs(collection(alice, "mosques", "test-room", "reports")));
     await assertFails(setDoc(doc(bob, "mosques", "test-room", "reports", "bob_message-1"), {
