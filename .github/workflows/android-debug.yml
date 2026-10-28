@@ -1,59 +1,163 @@
-name: Build MasjidPH Android Debug APK
+name: Android security gate
 
 on:
-  workflow_dispatch:
   push:
+    branches: ["**"]
     paths:
-      - 'android/**'
-      - 'www/**'
-      - 'capacitor.config.json'
-      - '.github/workflows/android-debug.yml'
+      - "android/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+      - "README.md"
+      - "package.json"
+      - "firestore.rules"
+  pull_request:
+    paths:
+      - "android/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+      - "README.md"
+      - "package.json"
+      - "firestore.rules"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: android-security-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FIREBASE_ANDROID_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID }}
 
 jobs:
-  build-debug-apk:
-    name: Build installable debug APK
+  android-security:
+    name: Static analysis, dependency audit, and APK checks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
+
       - name: Install Android SDK packages
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-      - name: Set up Gradle 8.7
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.7'
-      - name: Build debug APK
-        run: gradle --no-daemon -p android :app:assembleDebug
-      - name: Upload APK
+          gradle-version: "8.7"
+
+      - name: Set up Python for MobSF source scan
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned MobSF scanner
+        run: python -m pip install --disable-pip-version-check "mobsfscan==1.0.1"
+
+      - name: Scan first-party Android source
+        id: mobsfscan
+        continue-on-error: true
+        run: |
+          mkdir -p build/reports/security
+          mobsfscan --type android --json --output build/reports/security/mobsfscan.json \
+            android/app/src/main/java \
+            android/app/src/main/AndroidManifest.xml \
+            android/app/src/main/res
+
+      - name: Set up Go for OSV-Scanner
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.x"
+
+      - name: Install pinned OSV-Scanner
+        run: go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0
+
+      - name: Build, lint, and resolve all Android dependencies
+        id: android_build
+        continue-on-error: true
+        run: |
+          gradle --no-daemon --write-locks -p android \
+            :app:clean \
+            :app:resolveAllDependenciesForSecurity \
+            :app:lintDebug \
+            :app:assembleDebug \
+            --stacktrace --console=plain
+
+      - name: Verify generated Gradle dependency lock
+        id: lock_check
+        if: always()
+        continue-on-error: true
+        run: |
+          test -s android/app/gradle.lockfile || {
+            echo "::error::No resolved Gradle lockfile was generated; dependency audit cannot be considered complete."
+            exit 1
+          }
+
+      - name: Scan locked dependencies for known vulnerabilities
+        id: osv_scan
+        if: always()
+        continue-on-error: true
+        run: |
+          if [[ -s android/app/gradle.lockfile ]]; then
+            "$(go env GOPATH)/bin/osv-scanner" scan source -r .
+          else
+            echo "::error::Skipping OSV audit because no Gradle lockfile exists."
+            exit 1
+          fi
+
+      - name: Inspect compiled APK permissions, signature, and contents
+        id: apk_check
+        if: always() && steps.android_build.outcome == 'success'
+        continue-on-error: true
+        run: bash scripts/check-apk-security.sh
+
+      - name: Require a real Firebase Android configuration
+        id: firebase_check
+        if: always()
+        continue-on-error: true
+        run: gradle --no-daemon -p android :app:checkFirebaseAndroidConfig --console=plain
+
+      - name: Enforce security gate results
+        if: always()
+        env:
+          SOURCE_SCAN: ${{ steps.mobsfscan.outcome }}
+          BUILD_SCAN: ${{ steps.android_build.outcome }}
+          LOCK_SCAN: ${{ steps.lock_check.outcome }}
+          OSV_SCAN: ${{ steps.osv_scan.outcome }}
+          APK_SCAN: ${{ steps.apk_check.outcome }}
+          FIREBASE_SCAN: ${{ steps.firebase_check.outcome }}
+        run: |
+          failed=0
+          for item in "MobSF source scan:$SOURCE_SCAN" "Android build/lint:$BUILD_SCAN" "Gradle lock generation:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN"; do
+            name="${item%%:*}"
+            result="${item#*:}"
+            printf '%s => %s\n' "$name" "$result"
+            if [[ "$result" != "success" ]]; then failed=1; fi
+          done
+          if [[ "$failed" -ne 0 ]]; then
+            echo "::error::Security gate failed. No APK is being published."
+            exit 1
+          fi
+
+      - name: Upload security reports only (never the APK)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: MasjidPH-Navigator-debug-APK
-          path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+          name: android-security-reports
+          path: |
+            build/reports/security/**
+            android/app/gradle.lockfile
+            android/app/build/reports/lint-results-debug.html
+          if-no-files-found: warn
           retention-days: 14
-      - name: Publish APK into repository
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mkdir -p downloads
-          cp android/app/build/outputs/apk/debug/*.apk downloads/MasjidPH-Navigator-debug.apk
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add downloads/MasjidPH-Navigator-debug.apk
-          if git diff --cached --quiet; then
-            echo "APK is unchanged; nothing to commit."
-          else
-            git commit -m "Publish latest Android debug APK"
-            git push origin HEAD:${GITHUB_REF_NAME}
-          fi
