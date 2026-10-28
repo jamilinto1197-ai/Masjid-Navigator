@@ -60,6 +60,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QuerySnapshot;
@@ -858,6 +859,19 @@ public class MainActivity extends Activity {
             communityMessageList.addView(text("No chat connection.", 14, muted, false));
             return;
         }
+
+        Button moderationButton = button("Review reported messages (admins only)");
+        moderationButton.setVisibility(View.GONE);
+        moderationButton.setOnClickListener(v -> showModerationQueue());
+        chatCard.addView(moderationButton);
+        FirebaseUser moderationUser = auth.getCurrentUser();
+        moderationUser.getIdTokenResult(true).addOnSuccessListener(token -> {
+            if (Boolean.TRUE.equals(token.getClaims().get("admin"))
+                    && moderationButton.getParent() != null) {
+                moderationButton.setVisibility(View.VISIBLE);
+            }
+        });
+
         db.collection("mosques").limit(250).get().addOnSuccessListener(snapshot -> {
             List<MosqueItem> rooms = new ArrayList<>();
             for (QueryDocumentSnapshot document : snapshot) {
@@ -897,6 +911,106 @@ public class MainActivity extends Activity {
             communityMessageList.removeAllViews();
             communityMessageList.addView(text("The directory is unavailable.", 14, muted, false));
         });
+    }
+
+    private void showModerationQueue() {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) {
+            message("Sign in with an administrator account to review reports.");
+            return;
+        }
+        user.getIdTokenResult(true).addOnSuccessListener(token -> {
+            if (!Boolean.TRUE.equals(token.getClaims().get("admin"))) {
+                message("This account is not authorized to moderate reports.");
+                return;
+            }
+            displayModerationQueue();
+        }).addOnFailureListener(error ->
+                message("Could not verify administrator access. Check your connection and try again."));
+    }
+
+    private void displayModerationQueue() {
+        LinearLayout entries = new LinearLayout(this);
+        entries.setOrientation(LinearLayout.VERTICAL);
+        entries.setPadding(dp(8), dp(8), dp(8), dp(8));
+        entries.addView(text("Loading reports…", 14, muted, false));
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(entries);
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+                .setTitle("Community moderation queue")
+                .setView(scroll)
+                .setNegativeButton("Close", null)
+                .create();
+        dialog.show();
+
+        db.collectionGroup("reports").limit(50).get()
+                .addOnSuccessListener(snapshot -> {
+                    entries.removeAllViews();
+                    if (snapshot.isEmpty()) {
+                        entries.addView(text("No reports are waiting for review.", 14, muted, false));
+                        return;
+                    }
+                    for (DocumentSnapshot report : snapshot.getDocuments()) {
+                        DocumentReference reportRef = report.getReference();
+                        DocumentReference mosqueRef = reportRef.getParent() == null
+                                ? null : reportRef.getParent().getParent();
+                        String messageId = report.getString("messageId");
+                        if (mosqueRef == null || messageId == null || messageId.trim().isEmpty()) {
+                            continue;
+                        }
+                        String mosqueId = mosqueRef.getId();
+                        String reason = firstNonEmpty(report.getString("reason"), "Other", "");
+                        String reporter = firstNonEmpty(report.getString("reporterUid"), "Unknown member", "");
+                        DocumentReference messageRef = mosqueRef.collection("messages").document(messageId);
+
+                        LinearLayout row = card();
+                        row.addView(text(mosqueId + " · " + reason, 15, ink, true));
+                        row.addView(text("Reported by: " + reporter, 12, muted, false));
+                        TextView preview = text("Loading reported message…", 13, muted, false);
+                        row.addView(preview);
+                        messageRef.get().addOnSuccessListener(messageSnapshot -> {
+                            String messageText = messageSnapshot.exists()
+                                    ? firstNonEmpty(messageSnapshot.getString("text"), "Message text unavailable", "")
+                                    : "The reported message no longer exists.";
+                            preview.setText(messageText);
+                        }).addOnFailureListener(error -> preview.setText("Message preview unavailable."));
+
+                        Button dismiss = button("Dismiss report");
+                        dismiss.setOnClickListener(v -> new android.app.AlertDialog.Builder(MainActivity.this)
+                                .setTitle("Dismiss this report?")
+                                .setMessage("The report will be removed; the original message will remain.")
+                                .setNegativeButton("Cancel", null)
+                                .setPositiveButton("Dismiss", (confirm, which) -> reportRef.delete()
+                                        .addOnSuccessListener(done -> row.setVisibility(View.GONE))
+                                        .addOnFailureListener(error -> message("Could not dismiss the report. Verify moderator access.")))
+                                .show());
+                        row.addView(dismiss);
+
+                        Button remove = button("Delete message and close report");
+                        remove.setOnClickListener(v -> new android.app.AlertDialog.Builder(MainActivity.this)
+                                .setTitle("Delete reported message?")
+                                .setMessage("This permanently deletes the message and this report. Other reports, if any, remain for review.")
+                                .setNegativeButton("Cancel", null)
+                                .setPositiveButton("Delete message", (confirm, which) -> {
+                                    com.google.firebase.firestore.WriteBatch batch = db.batch();
+                                    batch.delete(messageRef);
+                                    batch.delete(reportRef);
+                                    batch.commit()
+                                            .addOnSuccessListener(done -> row.setVisibility(View.GONE))
+                                            .addOnFailureListener(error -> message("Could not remove the message. Verify moderator access and Firestore rules."));
+                                })
+                                .show());
+                        row.addView(remove);
+                        entries.addView(row);
+                    }
+                    if (entries.getChildCount() == 0) {
+                        entries.addView(text("No valid report records were found.", 14, muted, false));
+                    }
+                })
+                .addOnFailureListener(error -> {
+                    entries.removeAllViews();
+                    entries.addView(text("Could not load the moderation queue. Verify that this account has the server-assigned admin claim and the deployed Firestore rules allow moderation.", 14, muted, false));
+                });
     }
 
     private void loadCommunityMessages(MosqueItem mosque) {
@@ -984,17 +1098,23 @@ public class MainActivity extends Activity {
         messageData.put("text", bodyText);
         messageData.put("createdAt", FieldValue.serverTimestamp());
         String mosqueId = activeCommunityId;
-        communityMessageInput.setEnabled(false);
+        EditText sendingInput = communityMessageInput;
+        TextView sendingStatus = communityStatus;
+        sendingInput.setEnabled(false);
         db.collection("mosques").document(mosqueId).collection("messages").add(messageData)
                 .addOnSuccessListener(reference -> {
-                    if (communityMessageInput != null) {
-                        communityMessageInput.setText("");
-                        communityMessageInput.setEnabled(true);
+                    if (sendingInput != null) {
+                        if (communityMessageInput == sendingInput && activeCommunityId.equals(mosqueId)) {
+                            sendingInput.setText("");
+                        }
+                        sendingInput.setEnabled(true);
                     }
                 })
                 .addOnFailureListener(error -> {
-                    if (communityMessageInput != null) communityMessageInput.setEnabled(true);
-                    if (communityStatus != null) communityStatus.setText("Message was not sent. Check deployed Firestore rules and connection.");
+                    if (sendingInput != null) sendingInput.setEnabled(true);
+                    if (communityStatus == sendingStatus && sendingStatus != null) {
+                        sendingStatus.setText("Message was not sent. Check deployed Firestore rules and connection.");
+                    }
                 });
     }
 
