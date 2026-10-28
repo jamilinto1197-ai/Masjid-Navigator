@@ -6,6 +6,8 @@ on:
     paths:
       - "android/**"
       - "scripts/**"
+      - "tests/**"
+      - "firebase.json"
       - ".github/workflows/**"
       - "README.md"
       - "package.json"

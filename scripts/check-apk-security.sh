@@ -42,6 +42,21 @@ fi
 "$AAPT" dump permissions "$APK" > "$PERMISSIONS"
 "$AAPT" dump xmltree "$APK" AndroidManifest.xml > "$MANIFEST_TREE"
 
+TARGET_SDK="$(sed -n "s/.*targetSdkVersion:'\\([0-9][0-9]*\\)'.*/\\1/p" "$BADGING" | head -n1)"
+if [[ -z "$TARGET_SDK" || "$TARGET_SDK" -lt 29 ]]; then
+  echo "::error::Compiled APK target SDK is missing or below 29"
+  cat "$BADGING"
+  exit 1
+fi
+if grep -q 'android:launchMode.*singleTask' "$MANIFEST_TREE"; then
+  echo "::error::Launcher uses singleTask launch mode; investigate task-hijacking exposure"
+  exit 1
+fi
+if ! grep -q 'android:taskAffinity.*=""' "$MANIFEST_TREE"; then
+  echo "::error::Compiled launcher task affinity is not explicitly empty"
+  exit 1
+fi
+
 # These capabilities have no legitimate use in the current mosque finder.
 # A dependency adding one of them must be reviewed explicitly before approval.
 DENIED_PERMISSION_PATTERN='android\.permission\.(READ_SMS|RECEIVE_SMS|SEND_SMS|RECEIVE_MMS|READ_CONTACTS|WRITE_CONTACTS|CALL_PHONE|READ_CALL_LOG|WRITE_CALL_LOG|RECORD_AUDIO|CAMERA|ACCESS_BACKGROUND_LOCATION|MANAGE_EXTERNAL_STORAGE|SYSTEM_ALERT_WINDOW|REQUEST_INSTALL_PACKAGES|QUERY_ALL_PACKAGES|RECEIVE_BOOT_COMPLETED|BIND_ACCESSIBILITY_SERVICE|BIND_DEVICE_ADMIN)'
