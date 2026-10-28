@@ -27,37 +27,36 @@ service cloud.firestore {
     }
 
     function validPrayerFlags(prayers) {
+      // Older web clients may save only changed prayer flags. Validate any
+      // supplied value while allowing default-valued keys to be omitted.
       return prayers is map
         && prayers.keys().hasOnly(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'])
-        && prayers.keys().hasAll(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'])
-        && prayers.Fajr is bool
-        && prayers.Dhuhr is bool
-        && prayers.Asr is bool
-        && prayers.Maghrib is bool
-        && prayers.Isha is bool;
+        && (!prayers.keys().hasAny(['Fajr']) || prayers.Fajr is bool)
+        && (!prayers.keys().hasAny(['Dhuhr']) || prayers.Dhuhr is bool)
+        && (!prayers.keys().hasAny(['Asr']) || prayers.Asr is bool)
+        && (!prayers.keys().hasAny(['Maghrib']) || prayers.Maghrib is bool)
+        && (!prayers.keys().hasAny(['Isha']) || prayers.Isha is bool);
     }
 
     function validAlarmSettings(settings) {
+      // Preferences are merged from the web client. Empty/partial documents
+      // must be accepted for compatibility; every provided field is bounded.
       return settings is map
         && settings.keys().hasOnly([
           'prayers', 'tune', 'offset', 'suhoor', 'iftar',
           'ramadanOnly', 'suhoorOffset'
         ])
-        && settings.keys().hasAll([
-          'prayers', 'tune', 'offset', 'suhoor', 'iftar',
-          'ramadanOnly', 'suhoorOffset'
-        ])
-        && validPrayerFlags(settings.prayers)
-        && settings.tune in ['adhan', 'soft', 'beep']
-        && (settings.offset is int || settings.offset is float)
-        && settings.offset >= -60
-        && settings.offset <= 60
-        && settings.suhoor is bool
-        && settings.iftar is bool
-        && settings.ramadanOnly is bool
-        && (settings.suhoorOffset is int || settings.suhoorOffset is float)
-        && settings.suhoorOffset >= 1
-        && settings.suhoorOffset <= 180;
+        && (!settings.keys().hasAny(['prayers']) || validPrayerFlags(settings.prayers))
+        && (!settings.keys().hasAny(['tune']) || settings.tune in ['adhan', 'soft', 'beep'])
+        && (!settings.keys().hasAny(['offset'])
+            || ((settings.offset is int || settings.offset is float)
+                && settings.offset >= -60 && settings.offset <= 60))
+        && (!settings.keys().hasAny(['suhoor']) || settings.suhoor is bool)
+        && (!settings.keys().hasAny(['iftar']) || settings.iftar is bool)
+        && (!settings.keys().hasAny(['ramadanOnly']) || settings.ramadanOnly is bool)
+        && (!settings.keys().hasAny(['suhoorOffset'])
+            || ((settings.suhoorOffset is int || settings.suhoorOffset is float)
+                && settings.suhoorOffset >= 1 && settings.suhoorOffset <= 180));
     }
 
     // Mosque directory records are curated by trusted administrators.
