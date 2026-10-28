@@ -149,7 +149,7 @@ jobs:
 
       - name: Inspect compiled APK permissions, signature, and contents
         id: apk_check
-        if: always() && steps.android_build.outcome == 'success'
+        if: always()
         continue-on-error: true
         run: bash scripts/check-apk-security.sh
 
