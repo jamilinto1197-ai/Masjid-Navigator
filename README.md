@@ -1,21 +1,30 @@
 # MasjidPH Navigator
 
-A mobile-friendly Philippine mosque finder and prayer companion.
+A native Android mosque finder and prayer companion for the Philippine Muslim community.
 
-## Features
-- Responsive mosque-finder interface
-- Device-location support for distance calculations (permission required)
-- Qibla direction calculator
-- Estimated prayer times; verify them against a local masjid timetable
-- Progressive web app assets and Android WebView wrapper
+## Android build and security policy
 
-## Build an Android debug APK
-1. Open the **Actions** tab.
-2. Select **Build MasjidPH Android Debug APK**.
-3. Choose **Run workflow**.
-4. Download the `MasjidPH-Navigator-debug-APK` artifact when the run succeeds.
+The automated workflow is a **verification pipeline**, not an APK distribution pipeline. It runs Android lint, source security analysis, dependency vulnerability scanning, APK manifest/signature checks, and a Firebase configuration gate. It does not publish an installable APK. Debug APKs are not release artifacts and must not be considered safe solely because compilation succeeds.
 
-This is a debug/test APK, not a Play Store release. Test on a real Android device before relying on GPS, maps, prayer times, or other device features. Mosque entries are starter data and should be verified locally.
+## Firebase Android configuration
 
-## Privacy
-Location should only be requested after the user activates a location-dependent feature. The Qibla and distance calculations are intended to run on-device.
+The native app uses Firebase Authentication and Cloud Firestore. The previous hard-coded Android application ID was not a valid Firebase Android app ID. Firebase now fails closed when the ID is missing or malformed.
+
+1. In Firebase Console, register an Android app in project `masjid-109f3` with package name `com.masjidph.navigator`.
+2. Copy that app's `mobilesdk_app_id` from its `google-services.json`; the value must look like `1:885467340998:android:0123456789abcdef`.
+3. For local builds, pass it as a Gradle property:
+   ```bash
+   gradle --no-daemon -p android -PfirebaseAndroidAppId=1:885467340998:android:0123456789abcdef :app:assembleDebug
+   ```
+   For GitHub Actions, set the repository Actions variable `FIREBASE_ANDROID_APP_ID` to the actual value. The sample ID above is illustrative, not a valid project value.
+4. Verify the Firestore security rules in Firebase Console before using real user data. Client-side code does not replace server-side rules.
+
+Do not commit private service-account keys or Firebase Admin credentials. Firebase client configuration (including API key and app ID) is not a substitute for Firestore Security Rules.
+
+## Current feature status
+
+The current native UI includes email sign-in/registration/reset-password flows and a Firestore-backed mosque list/profile. Google sign-in still requires the matching OAuth Android client and signing fingerprints. Community chat, the device-sensor Qibla compass, and location-based prayer-time calculations are not complete; their screens are placeholders and should not be described as finished features.
+
+## Safety note
+
+A previous debug APK was flagged by Phone Manager and by four VirusTotal engines. The exact APK hash is being treated as untrusted until those detections are resolved or independently assessed. Do not install that APK or disable security protections to bypass the warning.
