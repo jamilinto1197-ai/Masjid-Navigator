@@ -13,11 +13,23 @@ import {
   getDoc,
   getDocs,
   serverTimestamp,
-  setDoc
+  setDoc,
+  writeBatch
 } from "firebase/firestore";
 
 const rulesPath = path.resolve(process.cwd(), "firestore.rules");
 const rules = await readFile(rulesPath, "utf8");
+
+async function submitMessage(db, uid, mosqueId, messageId, message) {
+  const batch = writeBatch(db);
+  batch.set(doc(db, "mosques", mosqueId, "messages", messageId), message);
+  batch.set(doc(db, "messageRateLimits", uid), {
+    lastMessageAt: serverTimestamp(),
+    lastMessageId: messageId
+  });
+  return batch.commit();
+}
+
 const env = await initializeTestEnvironment({
   projectId: "demo-masjidph",
   firestore: { rules }
@@ -47,6 +59,9 @@ try {
   const anonymous = env.unauthenticatedContext().firestore();
   const alice = env.authenticatedContext("alice", { email_verified: true }).firestore();
   const bob = env.authenticatedContext("bob", { email_verified: true }).firestore();
+  const charlie = env.authenticatedContext("charlie", { email_verified: true }).firestore();
+  const ghost = env.authenticatedContext("ghost", { email_verified: true }).firestore();
+  const burst = env.authenticatedContext("burst", { email_verified: true }).firestore();
   const admin = env.authenticatedContext("moderator", { email_verified: true, admin: true }).firestore();
   const unverified = env.authenticatedContext("unverified", { email_verified: false }).firestore();
   const unverifiedAdmin = env.authenticatedContext("unverified-admin", { email_verified: false, admin: true }).firestore();
@@ -152,18 +167,45 @@ try {
   });
 
   await test("a signed-in member can post a well-formed message as themselves", async () => {
-    await assertSucceeds(setDoc(doc(alice, "mosques", "test-room", "messages", "message-1"), {
+    await assertSucceeds(submitMessage(alice, "alice", "test-room", "message-1", {
       authorUid: "alice",
       authorName: "Alice",
       text: "Assalamu alaikum",
       createdAt: serverTimestamp()
     }));
+    await assertFails(submitMessage(alice, "alice", "test-room", "message-2-too-soon", {
+      authorUid: "alice",
+      authorName: "Alice",
+      text: "This message is too soon",
+      createdAt: serverTimestamp()
+    }));
+  });
+
+  await test("a single atomic batch cannot bypass the one-message cooldown", async () => {
+    const batch = writeBatch(burst);
+    batch.set(doc(burst, "mosques", "test-room", "messages", "burst-one"), {
+      authorUid: "burst",
+      authorName: "Burst",
+      text: "First message",
+      createdAt: serverTimestamp()
+    });
+    batch.set(doc(burst, "mosques", "test-room", "messages", "burst-two"), {
+      authorUid: "burst",
+      authorName: "Burst",
+      text: "Second message in the same batch",
+      createdAt: serverTimestamp()
+    });
+    batch.set(doc(burst, "messageRateLimits", "burst"), {
+      lastMessageAt: serverTimestamp(),
+      lastMessageId: "burst-one"
+    });
+    await assertFails(batch.commit());
   });
 
   await test("members cannot create chat rooms beneath non-existent mosques", async () => {
-    await assertFails(setDoc(doc(alice, "mosques", "does-not-exist", "messages", "ghost"), {
-      authorUid: "alice",
-      authorName: "Alice",
+    await assertFails(submitMessage(ghost, "ghost", "does-not-exist", "ghost-message", {
+      authorUid: "ghost",
+      authorName: "Ghost",
       text: "This must be denied",
       createdAt: serverTimestamp()
     }));
@@ -217,13 +259,13 @@ try {
   });
 
   await test("message writes cannot impersonate another user or exceed limits", async () => {
-    await assertFails(setDoc(doc(bob, "mosques", "test-room", "messages", "spoof"), {
+    await assertFails(submitMessage(bob, "bob", "test-room", "spoof", {
       authorUid: "alice",
       authorName: "Alice",
       text: "Impersonation attempt",
       createdAt: serverTimestamp()
     }));
-    await assertFails(setDoc(doc(bob, "mosques", "test-room", "messages", "too-long"), {
+    await assertFails(submitMessage(bob, "bob", "test-room", "too-long", {
       authorUid: "bob",
       authorName: "Bob",
       text: "x".repeat(1001),
@@ -264,9 +306,9 @@ try {
   });
 
   await test("a verified admin can delete another member's message and close a report", async () => {
-    await assertSucceeds(setDoc(doc(alice, "mosques", "test-room", "messages", "admin-delete-me"), {
-      authorUid: "alice",
-      authorName: "Alice",
+    await assertSucceeds(submitMessage(charlie, "charlie", "test-room", "admin-delete-me", {
+      authorUid: "charlie",
+      authorName: "Charlie",
       text: "Inappropriate content",
       createdAt: serverTimestamp()
     }));
