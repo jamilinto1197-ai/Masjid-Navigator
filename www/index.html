@@ -249,7 +249,7 @@ function showTab(tab){
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   const title=viewNames[tab]||'MASJIDPH';
   document.getElementById('screenTitle').innerHTML='<span>'+title+'</span><h2>'+({home:'Assalamu Alaikum 👋',explore:'Find your masjid 🕌',community:'Connect with your community',qibla:'Face the Qibla',profile:'Your community profile'}[tab]||title)+'</h2><p>'+({home:'Your masjid and salah companion.',explore:'Search, explore, and find nearby masjids.',community:'Conversations organized around local masjids.',qibla:'A calculated direction to the Kaaba in Makkah.',profile:'Manage how other members see you.'}[tab]||'')+'</p>';
-  if(tab==='explore' && window.map && typeof map.invalidateSize==='function') setTimeout(()=>map.invalidateSize(),120);
+  if(tab==='explore' && typeof map!=='undefined' && map && typeof map.invalidateSize==='function') setTimeout(()=>map.invalidateSize(),120);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
