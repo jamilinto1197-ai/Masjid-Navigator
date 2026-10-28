@@ -354,7 +354,7 @@ public class MainActivity extends Activity {
             return;
         }
         String webClientId = getString(R.string.default_web_client_id).trim();
-        if (!webClientId.matches("^[0-9]+-[A-Za-z0-9-]+\\\\.apps\\\\.googleusercontent\\\\.com$")) {
+        if (!webClientId.matches("^[0-9]+-[A-Za-z0-9-]+\\.apps\\.googleusercontent\\.com$")) {
             message("Google sign-in is not configured. Register the Firebase Android app, configure its OAuth web client, and set FIREBASE_WEB_CLIENT_ID in the repository Actions variables.");
             return;
         }

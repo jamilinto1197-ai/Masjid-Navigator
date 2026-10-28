@@ -53,7 +53,7 @@ tasks.register("checkFirebaseAndroidConfig") {
                 "Firebase Android app ID is missing or invalid. Register package com.masjidph.navigator in Firebase and set FIREBASE_ANDROID_APP_ID (or -PfirebaseAndroidAppId) to its mobilesdk_app_id."
             )
         }
-        if (!(firebaseWebClientId ==~ /^[0-9]+-[A-Za-z0-9-]+\\.apps\\.googleusercontent\\.com$/)) {
+        if (!(firebaseWebClientId ==~ /^[0-9]+-[A-Za-z0-9-]+\.apps\.googleusercontent\.com$/)) {
             throw new GradleException(
                 "Google OAuth web client ID is missing or invalid. Set FIREBASE_WEB_CLIENT_ID (or -PfirebaseWebClientId) to the project's Web application OAuth client ID."
             )
