@@ -15,8 +15,8 @@ The `security-hardening` branch targets Android 16 (API 36) using AGP 8.10.1 and
 - **Prayer times and reminders:** Location-based estimates using the AlAdhan HTTPS API. Optional daily local notifications refresh from the saved location through WorkManager; Android notification permission is required, background delivery is best-effort and can be delayed by battery policies. Confirm official times with a local masjid.
 - **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available. The compass rose now rotates with corrected true heading; bearing math has automated unit tests.
 - **Profiles:** Member profile read/write with client-side length limits and Firestore ownership rules.
-- **Community:** Mosque-specific text chat, realtime reads, own-message deletion, reporting, and a custom-claim-gated moderation queue. Ordinary members cannot read reports; verified admins can dismiss reports or delete reported messages. Rooms are open to verified signed-in users; membership approval, server-side spam/rate controls, and abuse escalation remain future work.
-- **Not complete:** Native Google sign-in pending OAuth setup, exact prayer alarms (current alerts are best-effort), in-app map tiles, server-side spam/rate controls and membership approval workflows, and physical-device / release testing.
+- **Community:** Mosque-specific text chat, realtime reads, own-message deletion, reporting, a 5-second Firestore-enforced per-user posting cooldown, and a custom-claim-gated moderation queue. Atomic-write rules also prevent multiple messages from bypassing the cooldown in one batch. Ordinary members cannot read reports; verified admins can dismiss reports or delete reported messages. Rooms are open to verified signed-in users; membership approval and broader abuse escalation remain future work.
+- **Not complete:** Native Google sign-in pending OAuth setup, exact prayer alarms (current alerts are best-effort), in-app map tiles, membership approval workflows and advanced abuse escalation, and physical-device / release testing.
 
 Do not describe the unfinished items above as implemented. More security and functionality work remains before the app can be treated as ready for general use.
 
@@ -29,10 +29,16 @@ Moderator access is controlled by the Firebase Auth custom claim `admin: true`, 
 ```js
 const admin = require("firebase-admin");
 admin.initializeApp({ credential: admin.credential.applicationDefault() });
-const user = await admin.auth().getUser("REPLACE_WITH_APPROVED_UID");
-await admin.auth().setCustomUserClaims(user.uid, {
-  ...(user.customClaims || {}),
-  admin: true
+
+(async () => {
+  const user = await admin.auth().getUser("REPLACE_WITH_APPROVED_UID");
+  await admin.auth().setCustomUserClaims(user.uid, {
+    ...(user.customClaims || {}),
+    admin: true
+  });
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
 });
 ```
 
