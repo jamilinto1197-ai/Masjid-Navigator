@@ -154,6 +154,44 @@ try {
     }));
   });
 
+  await test("a signed-in member can read messages from an existing room", async () => {
+    await assertSucceeds(getDocs(collection(alice, "mosques", "test-room", "messages")));
+  });
+
+  await test("members cannot report their own message", async () => {
+    await assertFails(setDoc(doc(alice, "mosques", "test-room", "reports", "alice_message-1"), {
+      reporterUid: "alice",
+      messageId: "message-1",
+      reason: "Spam",
+      createdAt: serverTimestamp()
+    }));
+  });
+
+  await test("reports reject invalid reasons and non-existent message IDs", async () => {
+    await assertFails(setDoc(doc(bob, "mosques", "test-room", "reports", "bob_bad-reason"), {
+      reporterUid: "bob",
+      messageId: "message-1",
+      reason: "Run command",
+      createdAt: serverTimestamp()
+    }));
+    await assertFails(setDoc(doc(bob, "mosques", "test-room", "reports", "bob_missing-message"), {
+      reporterUid: "bob",
+      messageId: "does-not-exist",
+      reason: "Other",
+      createdAt: serverTimestamp()
+    }));
+  });
+
+  await test("a member cannot list profiles or read another member's prayer settings", async () => {
+    await assertFails(getDocs(collection(alice, "users")));
+    await assertFails(getDoc(doc(alice, "userSettings", "bob")));
+  });
+
+  await test("anonymous and cross-user writes to private settings are denied", async () => {
+    await assertFails(setDoc(doc(anonymous, "users", "anonymous"), validProfile));
+    await assertFails(setDoc(doc(alice, "userSettings", "bob"), validSettings));
+  });
+
   await test("messages cannot be edited after submission", async () => {
     await assertFails(setDoc(doc(alice, "mosques", "test-room", "messages", "message-1"), {
       authorUid: "alice",
