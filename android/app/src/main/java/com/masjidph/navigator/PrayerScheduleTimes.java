@@ -27,7 +27,8 @@ public final class PrayerScheduleTimes {
         SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.US);
         format.setLenient(false);
         TimeZone zone = TimeZone.getTimeZone(timeZoneId);
-        if (!zone.getID().equals(timeZoneId) && !"GMT".equals(zone.getID())) {
+        if ("GMT".equals(zone.getID()) && !"GMT".equals(timeZoneId)) {
+            // TimeZone.getTimeZone silently falls back to GMT for unknown IDs.
             throw new ParseException("Unknown time zone: " + timeZoneId, 0);
         }
         format.setTimeZone(zone);

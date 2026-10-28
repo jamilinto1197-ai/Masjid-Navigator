@@ -72,7 +72,8 @@ public final class PrayerReminderReceiver extends BroadcastReceiver {
                 (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         PendingIntent pending = alarmPendingIntent(context, prayer, PendingIntent.FLAG_UPDATE_CURRENT);
         if (!prefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false)
-                || atMillis <= System.currentTimeMillis() || alarms == null) {
+                || !PrayerScheduleTimes.isFutureTime(atMillis, System.currentTimeMillis())
+                || alarms == null) {
             if (alarms != null) alarms.cancel(pending);
             pending.cancel();
             return;

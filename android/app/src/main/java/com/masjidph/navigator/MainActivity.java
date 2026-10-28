@@ -411,12 +411,10 @@ public class MainActivity extends Activity {
             return;
         }
 
+        long requestStartedAt = System.currentTimeMillis();
+        prefs.edit().putLong(LAST_VERIFICATION_EMAIL_SENT_AT, requestStartedAt).apply();
         if (status != null) status.setText("Sending verification email…");
         user.sendEmailVerification().addOnCompleteListener(this, task -> {
-            if (task.isSuccessful()) {
-                prefs.edit().putLong(LAST_VERIFICATION_EMAIL_SENT_AT,
-                        System.currentTimeMillis()).apply();
-            }
             if (status == null || status.getParent() == null) return;
             status.setText(task.isSuccessful()
                     ? "Verification email sent. Open the link in your inbox, then return and tap “I've verified my email”."

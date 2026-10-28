@@ -130,8 +130,6 @@ public final class PrayerScheduleWorker extends Worker {
                 throw new java.io.IOException("Prayer service returned an invalid response");
             }
             JSONObject timings = json.getJSONObject("data").getJSONObject("timings");
-            long now = System.currentTimeMillis();
-
             for (String prayer : PRAYERS) {
                 String raw = timings.optString(prayer, "").trim();
                 int space = raw.indexOf(' ');
