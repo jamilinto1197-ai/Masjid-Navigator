@@ -77,8 +77,10 @@ if grep -q 'android.permission.RECEIVE_BOOT_COMPLETED' "$PERMISSIONS"; then
 fi
 
 # The app's reminder receiver is private to this package and must stay non-exported.
-if ! grep -A12 'com.masjidph.navigator.PrayerReminderReceiver' "$MANIFEST_TREE" | grep -qi 'android:exported.*false'; then
-  echo "::error::Prayer reminder receiver is missing or exported"
+# aapt may render a manifest boolean as either the word "false" or hex 0x0.
+if ! grep -A16 'com.masjidph.navigator.PrayerReminderReceiver' "$MANIFEST_TREE" \
+    | grep -qiE 'android:exported.*(false|0x0)([^[:xdigit:]]|$)'; then
+  echo "::error::Prayer reminder receiver is missing or not explicitly non-exported"
   exit 1
 fi
 
