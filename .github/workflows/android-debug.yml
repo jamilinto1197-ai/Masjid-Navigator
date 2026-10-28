@@ -123,6 +123,7 @@ jobs:
           gradle --no-daemon --write-locks -p android \
             :app:clean \
             :app:resolveAllDependenciesForSecurity \
+            :app:testDebugUnitTest \
             :app:lintDebug \
             :app:assembleDebug \
             --stacktrace --console=plain
