@@ -4,7 +4,7 @@ set -euo pipefail
 APK="${1:-android/app/build/outputs/apk/debug/app-debug.apk}"
 REPORT_DIR="${2:-android/app/build/reports/security}"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-BUILD_TOOLS_VERSION="35.0.0"
+BUILD_TOOLS_VERSION="36.0.0"
 
 mkdir -p "$REPORT_DIR"
 if [[ ! -f "$APK" ]]; then
@@ -43,8 +43,8 @@ fi
 "$AAPT" dump xmltree "$APK" AndroidManifest.xml > "$MANIFEST_TREE"
 
 TARGET_SDK="$(sed -n "s/.*targetSdkVersion:'\\([0-9][0-9]*\\)'.*/\\1/p" "$BADGING" | head -n1)"
-if [[ -z "$TARGET_SDK" || "$TARGET_SDK" -lt 29 ]]; then
-  echo "::error::Compiled APK target SDK is missing or below 29"
+if [[ -z "$TARGET_SDK" || "$TARGET_SDK" -lt 36 ]]; then
+  echo "::error::Compiled APK must target Android 16 (API 36) or newer"
   cat "$BADGING"
   exit 1
 fi
