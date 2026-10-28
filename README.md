@@ -1,30 +1,37 @@
 # MasjidPH Navigator
 
-A native Android mosque finder and prayer companion for the Philippine Muslim community.
+MasjidPH Navigator is being migrated into a native Android application for discovering masjids in the Philippines, checking estimated prayer times, finding the Qibla direction, and connecting with local communities.
 
-## Android build and security policy
+## Security status
 
-The automated workflow is a **verification pipeline**, not an APK distribution pipeline. It runs Android lint, source security analysis, dependency vulnerability scanning, APK manifest/signature checks, and a Firebase configuration gate. It does not publish an installable APK. Debug APKs are not release artifacts and must not be considered safe solely because compilation succeeds.
+**APK distribution is paused.** A previous debug APK was flagged by Android Phone Manager and four VirusTotal engines. That APK was removed from the default branch. Do not install copies of it or bypass security alerts.
 
-## Firebase Android configuration
+The `security-hardening` branch has a security gate that runs MobSF source analysis, a Gradle dependency lock and OSV audit, Android lint/build, compiled APK checks, and Firestore authorization tests. Its workflow publishes security reports only, never an APK. A green compile alone is not a malware verdict.
 
-The native app uses Firebase Authentication and Cloud Firestore. The previous hard-coded Android application ID was not a valid Firebase Android app ID. Firebase now fails closed when the ID is missing or malformed.
+## Native feature status on this branch
 
-1. In Firebase Console, register an Android app in project `masjid-109f3` with package name `com.masjidph.navigator`.
-2. Copy that app's `mobilesdk_app_id` from its `google-services.json`; the value must look like `1:885467340998:android:0123456789abcdef`.
-3. For local builds, pass it as a Gradle property:
-   ```bash
-   gradle --no-daemon -p android -PfirebaseAndroidAppId=1:885467340998:android:0123456789abcdef :app:assembleDebug
-   ```
-   For GitHub Actions, set the repository Actions variable `FIREBASE_ANDROID_APP_ID` to the actual value. The sample ID above is illustrative, not a valid project value.
-4. Verify the Firestore security rules in Firebase Console before using real user data. Client-side code does not replace server-side rules.
+- **Authentication:** Firebase email/password registration, sign-in, and password-reset flow.
+- **Mosque directory:** Search and filter, optional location sorting, Firestore directory records, and launch directions in Google Maps. Starter coordinates are approximate, clearly labelled, and should be locally verified.
+- **Prayer times:** On-demand location-based time estimates using the AlAdhan HTTPS API. Confirm official times with a local masjid.
+- **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available.
+- **Profiles:** Member profile read/write with client-side length limits and Firestore ownership rules.
+- **Community:** Mosque-specific text chat, realtime reads, own-message deletion, and reporting. Rooms are currently open to all signed-in users; membership approval, spam controls, and an administrator moderation interface are not yet implemented.
+- **Not complete:** Native Google sign-in, reliable background prayer alarms/notifications, in-app map tiles, admin tooling, and physical-device / release testing.
 
-Do not commit private service-account keys or Firebase Admin credentials. Firebase client configuration (including API key and app ID) is not a substitute for Firestore Security Rules.
+Do not describe the unfinished items above as implemented. More security and functionality work remains before the app can be treated as ready for general use.
 
-## Current feature status
+## Firebase setup required
 
-The current native UI includes email sign-in/registration/reset-password flows and a Firestore-backed mosque list/profile. Google sign-in still requires the matching OAuth Android client and signing fingerprints. Community chat, the device-sensor Qibla compass, and location-based prayer-time calculations are not complete; their screens are placeholders and should not be described as finished features.
+The native app package is `com.masjidph.navigator` in Firebase project `masjid-109f3`.
 
-## Safety note
+1. Register an Android app with that package name in Firebase Console.
+2. Copy its real `mobilesdk_app_id` value (the Android form is `1:885467340998:android:<hex-id>`). Do not use the Web app ID and do not make up an ID.
+3. Set the repository Actions variable `FIREBASE_ANDROID_APP_ID` to the real value so the security workflow can validate configuration.
+4. Review and deploy `firestore.rules` only after the emulator authorization tests pass. The rules have not been deployed to the production Firebase project by this repository workflow.
+5. Configure Google OAuth client IDs and signing fingerprints before enabling native Google sign-in.
 
-A previous debug APK was flagged by Phone Manager and by four VirusTotal engines. The exact APK hash is being treated as untrusted until those detections are resolved or independently assessed. Do not install that APK or disable security protections to bypass the warning.
+Never commit Firebase Admin service-account keys or other server credentials. Client SDK configuration is not a substitute for deployed security rules. Consider restricting the Firebase API key to the expected Android package/signing certificates and enabling Firebase App Check before production.
+
+## Build and test
+
+The default branch currently runs a compile-only diagnostic workflow and does not upload or publish an APK. The security branch is being verified independently; it is not a release build. A debug build is not considered safe just because the compiler succeeds.
