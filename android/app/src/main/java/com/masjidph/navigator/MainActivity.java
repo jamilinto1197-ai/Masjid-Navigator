@@ -871,7 +871,8 @@ public class MainActivity extends Activity {
                     report.put("messageId", messageId);
                     report.put("reason", reasons[which]);
                     report.put("createdAt", FieldValue.serverTimestamp());
-                    db.collection("mosques").document(mosqueId).collection("reports").add(report)
+                    db.collection("mosques").document(mosqueId).collection("reports")
+                            .document(user.getUid() + "_" + messageId).set(report)
                             .addOnSuccessListener(reference -> message("Report submitted for administrator review."))
                             .addOnFailureListener(error -> message("Report was not submitted. Check connection and Firestore rules."));
                 }).show();
