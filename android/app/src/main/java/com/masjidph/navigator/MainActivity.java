@@ -52,6 +52,7 @@ import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.UserInfo;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -207,8 +208,27 @@ public class MainActivity extends Activity {
         showRoot();
         if (auth != null) {
             authStateListener = firebaseAuth -> {
-                if (firebaseAuth.getCurrentUser() != null) showApp();
-                else showLogin();
+                FirebaseUser currentUser = firebaseAuth.getCurrentUser();
+                if (currentUser == null) {
+                    showLogin();
+                    return;
+                }
+                if (requiresEmailVerification(currentUser)) {
+                    showLogin();
+                    currentUser.sendEmailVerification().addOnCompleteListener(this, task -> {
+                        FirebaseUser latestUser = firebaseAuth.getCurrentUser();
+                        if (latestUser != null && requiresEmailVerification(latestUser)) {
+                            firebaseAuth.signOut();
+                        }
+                        if (status != null) {
+                            status.setText(task.isSuccessful()
+                                    ? "Verify your email using the link we sent. You have been signed out until verification."
+                                    : "Your email is not verified. We could not resend the link; check your inbox or try again later.");
+                        }
+                    });
+                    return;
+                }
+                showApp();
             };
             auth.addAuthStateListener(authStateListener);
         } else {
@@ -318,6 +338,14 @@ public class MainActivity extends Activity {
                 12, muted, false));
     }
 
+    private boolean requiresEmailVerification(FirebaseUser user) {
+        if (user == null || user.isEmailVerified()) return false;
+        for (UserInfo provider : user.getProviderData()) {
+            if ("password".equals(provider.getProviderId())) return true;
+        }
+        return false;
+    }
+
     private void authenticate(boolean create) {
         if (!firebaseReady || auth == null) { message(firebaseConfigError); return; }
         String email = emailInput.getText().toString().trim();
@@ -329,13 +357,8 @@ public class MainActivity extends Activity {
         status.setText(create ? "Creating your account…" : "Signing in…");
         if (create) {
             auth.createUserWithEmailAndPassword(email, pass).addOnCompleteListener(this, task -> {
-                if (task.isSuccessful()) {
-                    FirebaseUser user = auth.getCurrentUser();
-                    if (user != null) {
-                        user.sendEmailVerification();
-                        message("Account created. Check your email for the verification link.");
-                    }
-                } else message(authMessage(task.getException()));
+                // The auth-state listener sends the verification link and signs out unverified password accounts.
+                if (!task.isSuccessful()) message(authMessage(task.getException()));
             });
         } else {
             auth.signInWithEmailAndPassword(email, pass).addOnCompleteListener(this,
