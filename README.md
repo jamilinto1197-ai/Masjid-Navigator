@@ -1,21 +1,21 @@
 # MasjidPH Navigator
 
-A mobile-friendly Philippine mosque finder and prayer companion.
+A mobile-friendly Philippine mosque finder and prayer companion. The Android project is being migrated to a fully native experience.
 
-## Features
-- Responsive mosque-finder interface
-- Device-location support for distance calculations (permission required)
-- Qibla direction calculator
-- Estimated prayer times; verify them against a local masjid timetable
-- Progressive web app assets and Android WebView wrapper
+## Security notice — Android APK distribution paused
 
-## Build an Android debug APK
-1. Open the **Actions** tab.
-2. Select **Build MasjidPH Android Debug APK**.
-3. Choose **Run workflow**.
-4. Download the `MasjidPH-Navigator-debug-APK` artifact when the run succeeds.
+A previously published debug APK was flagged by Android Phone Manager and by four VirusTotal engines. The detected file has been removed from the repository. Do not install copies of that APK or disable device security to bypass the warning.
 
-This is a debug/test APK, not a Play Store release. Test on a real Android device before relying on GPS, maps, prayer times, or other device features. Mosque entries are starter data and should be verified locally.
+The default branch currently runs a **compile-only diagnostic** workflow. It does not upload or publish APKs. Security scanning and hardening are being developed separately; a successful compile is not proof of app safety.
 
-## Privacy
-Location should only be requested after the user activates a location-dependent feature. The Qibla and distance calculations are intended to run on-device.
+## Current feature status
+
+The existing web app includes a starter mosque directory, location-based distances and maps, Qibla bearing calculation, estimated prayer times, and Firebase email/Google authentication and profile/settings data. The native Android migration is incomplete: the current native Qibla screen, prayer times, community chat, and some Firebase workflows are still under development. Mosque starter listings are approximate and must be verified before travel. Prayer times should be confirmed against a local masjid timetable.
+
+## Firebase
+
+The native Android app must be registered as package `com.masjidph.navigator` in Firebase project `masjid-109f3`. The valid Android `mobilesdk_app_id` is distinct from the web app ID. Do not substitute the web app ID or invent an Android app ID. Firestore Security Rules must be configured and deployed before using real user data.
+
+## Build
+
+The GitHub Actions workflow currently compiles the debug APK only for diagnostics. It does not produce a downloadable artifact while the security review is open. Do not rely on a compile-only build as a release.
