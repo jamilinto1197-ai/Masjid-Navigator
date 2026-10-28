@@ -2,8 +2,8 @@
   "name": "masjidph-navigator",
   "version": "1.0.0",
   "private": true,
-  "description": "Philippine mosque finder and prayer companion",
-  "scripts": { "check": "bash scripts/check-project.sh" },
-  "dependencies": { "@capacitor/android": "^6.1.2", "@capacitor/core": "^6.1.2", "@capacitor/geolocation": "^6.0.1" },
-  "devDependencies": { "@capacitor/cli": "^6.1.2" }
+  "description": "Philippine mosque finder and prayer companion (native Android plus standalone static PWA)",
+  "scripts": {
+    "check": "bash scripts/check-project.sh"
+  }
 }

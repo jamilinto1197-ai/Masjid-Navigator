@@ -1,12 +1,12 @@
 # MasjidPH Navigator
 
-MasjidPH Navigator is being migrated into a native Android application for discovering masjids in the Philippines, checking estimated prayer times, finding the Qibla direction, and connecting with local communities.
+MasjidPH Navigator provides a native Android app and a separate static web/PWA for discovering masjids in the Philippines, checking estimated prayer times, finding the Qibla direction, and connecting with local communities. The Android package is fully native Java UI and does not embed the web assets or use a Capacitor bridge.
 
 ## Security status
 
 **APK distribution is paused.** A previous debug APK was flagged by Android Phone Manager and four VirusTotal engines. That APK was removed from the default branch. Do not install copies of it or bypass security alerts.
 
-The `security-hardening` branch targets Android 16 (API 36) using AGP 8.10.1 and Gradle 8.11.1, with explicit edge-to-edge system-bar handling. CI resolves the Android dependency lock on every build, checks it against the reviewed SHA-256 baseline in `android/app/gradle.lockfile.sha256`, and runs OSV-Scanner against the actual resolved dependency graph. A changed graph fails CI until reviewed and deliberately re-baselined. GitHub Actions are pinned to reviewed commit SHAs. The security gate also runs MobSF source analysis, Android unit tests, lint/build, compiled APK checks, and Firestore authorization tests. The APK inspection rejects both legacy `assets/www` and Capacitor `assets/public` bundles because the native activity does not use a WebView. Its workflow publishes security reports only, never an APK. A green compile alone is not a malware verdict. The current workflow validates the report moderation rules and the reminder scheduling code, but a real Android device test is still required.
+The `security-hardening` branch targets Android 16 (API 36) using AGP 8.10.1 and Gradle 8.11.1, with explicit edge-to-edge system-bar handling. CI resolves the Android dependency lock on every build, checks it against the reviewed SHA-256 baseline in `android/app/gradle.lockfile.sha256`, and runs OSV-Scanner against the actual resolved dependency graph. A changed graph fails CI until reviewed and deliberately re-baselined. GitHub Actions are pinned to reviewed commit SHAs. The security gate also runs MobSF source analysis, Android unit tests, lint/build, compiled APK checks, and Firestore authorization tests. The APK inspection rejects both legacy `assets/www` and Capacitor `assets/public` bundles because the native activity does not use a WebView. The root `www/` folder remains the standalone static web/PWA; unused Capacitor packages and configuration were removed from the Android migration branch. Its workflow publishes security reports only, never an APK. A green compile alone is not a malware verdict. The current workflow validates the report moderation rules and the reminder scheduling code, but a real Android device test is still required.
 
 ## Native feature status on this branch
 
@@ -54,4 +54,4 @@ Never commit Firebase Admin service-account keys or other server credentials. Cl
 
 ## Build and test
 
-The default branch currently runs a compile-only diagnostic workflow and does not upload or publish an APK. The security branch is being verified independently; it is not a release build. A debug build is not considered safe just because the compiler succeeds.
+The default branch currently runs a compile-only diagnostic workflow and does not upload or publish an APK. The security branch checks the standalone web/PWA with `npm run check` and builds the native Android package separately. The security branch is being verified independently; it is not a release build. A debug build is not considered safe just because the compiler succeeds.

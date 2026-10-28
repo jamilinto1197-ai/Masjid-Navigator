@@ -83,6 +83,11 @@ jobs:
             android/app/src/main/AndroidManifest.xml \
             android/app/src/main/res
 
+      - name: Check standalone web/PWA source
+        id: web_check
+        continue-on-error: true
+        run: npm run check
+
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.34.1
 
@@ -177,6 +182,7 @@ jobs:
         if: always()
         env:
           SOURCE_SCAN: ${{ steps.mobsfscan.outcome }}
+          WEB_SCAN: ${{ steps.web_check.outcome }}
           BUILD_SCAN: ${{ steps.android_build.outcome }}
           LOCK_SCAN: ${{ steps.lock_check.outcome }}
           OSV_SCAN: ${{ steps.osv_scan.outcome }}
@@ -185,7 +191,7 @@ jobs:
           RULES_SCAN: ${{ steps.firestore_rules.outcome }}
         run: |
           failed=0
-          for item in "MobSF source scan:$SOURCE_SCAN" "Android build/lint:$BUILD_SCAN" "Dependency graph baseline:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN" "Firestore rules compilation:$RULES_SCAN"; do
+          for item in "MobSF source scan:$SOURCE_SCAN" "Standalone web/PWA check:$WEB_SCAN" "Android build/lint:$BUILD_SCAN" "Dependency graph baseline:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN" "Firestore rules compilation:$RULES_SCAN"; do
             name="${item%%:*}"
             result="${item#*:}"
             printf '%s => %s\n' "$name" "$result"
