@@ -68,6 +68,8 @@ tasks.register("checkFirebaseAndroidConfig") {
 }
 
 dependencies {
+    testImplementation 'junit:junit:4.13.2'
+
     constraints {
         implementation('com.google.guava:guava:33.7.2-android') {
             because 'Fixes GHSA-xxph-c9ww-hj94 (CVSS 8.2) in transitive Guava 33.6.0-android'
