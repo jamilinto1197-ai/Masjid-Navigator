@@ -41,40 +41,6 @@
 </nav>
 <div class="footer">MasjidPH Navigator · Verify local mosque details and prayer timetables.</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="">
-const viewNames={home:'HOME',explore:'EXPLORE MASJIDS',community:'COMMUNITY',qibla:'QIBLA DIRECTION',profile:'YOUR PROFILE'};
-function showTab(tab){
-  document.querySelectorAll('.app-view').forEach(v=>v.hidden=v.dataset.view!==tab);
-  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
-  const title=viewNames[tab]||'MASJIDPH';
-  document.getElementById('screenTitle').innerHTML='<span>'+title+'</span><h2>'+({home:'Assalamu Alaikum 👋',explore:'Find your masjid 🕌',community:'Connect with your community',qibla:'Face the Qibla',profile:'Your community profile'}[tab]||title)+'</h2><p>'+({home:'Your masjid and salah companion.',explore:'Search, explore, and find nearby masjids.',community:'Conversations organized around local masjids.',qibla:'A calculated direction to the Kaaba in Makkah.',profile:'Manage how other members see you.'}[tab]||'')+'</p>';
-  if(tab==='explore' && window.map && typeof map.invalidateSize==='function') setTimeout(()=>map.invalidateSize(),120);
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.go)));
-async function loadProfile(user){
-  if(!db||!user)return;
-  try{
-    const snap=await getDoc(doc(db,'users',user.uid));
-    const p=snap.exists()?snap.data():{};
-    document.getElementById('profileName').value=p.displayName||user.displayName||'';
-    document.getElementById('profileLocation').value=p.location||'';
-    document.getElementById('profileBio').value=p.bio||'';
-    document.getElementById('profileAvatar').textContent=(p.displayName||user.displayName||user.email||'M').trim().charAt(0).toUpperCase();
-  }catch(e){console.warn('Profile load failed',e);}
-}
-document.getElementById('saveProfile').addEventListener('click',async()=>{
-  if(!db||!signedInUser)return;
-  const displayName=document.getElementById('profileName').value.trim();
-  if(!displayName){document.getElementById('profileStatus').textContent='Please enter a display name.';return;}
-  const profile={displayName,location:document.getElementById('profileLocation').value.trim(),bio:document.getElementById('profileBio').value.trim(),updatedAt:new Date().toISOString()};
-  try{
-    await setDoc(doc(db,'users',signedInUser.uid),profile,{merge:true});
-    document.getElementById('profileAvatar').textContent=displayName.charAt(0).toUpperCase();
-    document.getElementById('profileStatus').textContent='Profile saved to your account.';
-  }catch(e){document.getElementById('profileStatus').textContent='Could not save profile. Check your connection and Firestore rules.';console.error(e);}
-});
-document.getElementById('profileSignOut').addEventListener('click',async()=>{if(auth)try{await signOut(auth);}catch(e){document.getElementById('profileStatus').textContent=authError(e);}});
 </script>
 <script>
 'use strict';
@@ -277,5 +243,40 @@ document.getElementById('authSignOut').addEventListener('click',async()=>{
   try { await signOut(auth); statusEl.textContent='You are signed out.'; }
   catch(error) { statusEl.textContent=authError(error); }
 });
+const viewNames={home:'HOME',explore:'EXPLORE MASJIDS',community:'COMMUNITY',qibla:'QIBLA DIRECTION',profile:'YOUR PROFILE'};
+function showTab(tab){
+  document.querySelectorAll('.app-view').forEach(v=>v.hidden=v.dataset.view!==tab);
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  const title=viewNames[tab]||'MASJIDPH';
+  document.getElementById('screenTitle').innerHTML='<span>'+title+'</span><h2>'+({home:'Assalamu Alaikum 👋',explore:'Find your masjid 🕌',community:'Connect with your community',qibla:'Face the Qibla',profile:'Your community profile'}[tab]||title)+'</h2><p>'+({home:'Your masjid and salah companion.',explore:'Search, explore, and find nearby masjids.',community:'Conversations organized around local masjids.',qibla:'A calculated direction to the Kaaba in Makkah.',profile:'Manage how other members see you.'}[tab]||'')+'</p>';
+  if(tab==='explore' && window.map && typeof map.invalidateSize==='function') setTimeout(()=>map.invalidateSize(),120);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.go)));
+async function loadProfile(user){
+  if(!db||!user)return;
+  try{
+    const snap=await getDoc(doc(db,'users',user.uid));
+    const p=snap.exists()?snap.data():{};
+    document.getElementById('profileName').value=p.displayName||user.displayName||'';
+    document.getElementById('profileLocation').value=p.location||'';
+    document.getElementById('profileBio').value=p.bio||'';
+    document.getElementById('profileAvatar').textContent=(p.displayName||user.displayName||user.email||'M').trim().charAt(0).toUpperCase();
+  }catch(e){console.warn('Profile load failed',e);}
+}
+document.getElementById('saveProfile').addEventListener('click',async()=>{
+  if(!db||!signedInUser)return;
+  const displayName=document.getElementById('profileName').value.trim();
+  if(!displayName){document.getElementById('profileStatus').textContent='Please enter a display name.';return;}
+  const profile={displayName,location:document.getElementById('profileLocation').value.trim(),bio:document.getElementById('profileBio').value.trim(),updatedAt:new Date().toISOString()};
+  try{
+    await setDoc(doc(db,'users',signedInUser.uid),profile,{merge:true});
+    document.getElementById('profileAvatar').textContent=displayName.charAt(0).toUpperCase();
+    document.getElementById('profileStatus').textContent='Profile saved to your account.';
+  }catch(e){document.getElementById('profileStatus').textContent='Could not save profile. Check your connection and Firestore rules.';console.error(e);}
+});
+document.getElementById('profileSignOut').addEventListener('click',async()=>{if(auth)try{await signOut(auth);}catch(e){document.getElementById('profileStatus').textContent=authError(e);}});
+
 </script>
 </body></html>
