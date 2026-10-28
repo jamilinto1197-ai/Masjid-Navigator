@@ -62,6 +62,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node for Firestore rules validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install pinned MobSF scanner
         run: python -m pip install --disable-pip-version-check "mobsfscan==1.0.1"
 
@@ -70,10 +75,18 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p build/reports/security
-          mobsfscan --type android --json --output build/reports/security/mobsfscan.json \
+          mobsfscan --type android --json -o build/reports/security/mobsfscan.json \
             android/app/src/main/java \
             android/app/src/main/AndroidManifest.xml \
             android/app/src/main/res
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.34.1
+
+      - name: Compile Firestore rules in the local emulator
+        id: firestore_rules
+        continue-on-error: true
+        run: firebase emulators:exec --project demo-masjidph --only firestore "echo Firestore rules compiled by the emulator."
 
       - name: Set up Go for OSV-Scanner
         uses: actions/setup-go@v6
@@ -81,7 +94,18 @@ jobs:
           go-version: "1.27.x"
 
       - name: Install pinned OSV-Scanner
-        run: go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0
+        run: |
+          # Retry transient checksum/database transport failures without disabling Go's module verification.
+          for attempt in 1 2 3; do
+            if go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "OSV-Scanner install failed on attempt $attempt; retrying in 5 seconds."
+              sleep 5
+            fi
+          done
+          exit 1
 
       - name: Build, lint, and resolve all Android dependencies
         id: android_build
@@ -137,9 +161,10 @@ jobs:
           OSV_SCAN: ${{ steps.osv_scan.outcome }}
           APK_SCAN: ${{ steps.apk_check.outcome }}
           FIREBASE_SCAN: ${{ steps.firebase_check.outcome }}
+          RULES_SCAN: ${{ steps.firestore_rules.outcome }}
         run: |
           failed=0
-          for item in "MobSF source scan:$SOURCE_SCAN" "Android build/lint:$BUILD_SCAN" "Gradle lock generation:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN"; do
+          for item in "MobSF source scan:$SOURCE_SCAN" "Android build/lint:$BUILD_SCAN" "Gradle lock generation:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN" "Firestore rules compilation:$RULES_SCAN"; do
             name="${item%%:*}"
             result="${item#*:}"
             printf '%s => %s\n' "$name" "$result"
