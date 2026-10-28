@@ -65,11 +65,12 @@ if grep -E "$DENIED_PERMISSION_PATTERN" "$PERMISSIONS"; then
   exit 1
 fi
 
-# Native migration must not accidentally package the old WebView/PWA bundle.
+# Native migration must not accidentally package a legacy WebView/PWA bundle.
+# Reject both the old assets/www path and Capacitor's newer assets/public path.
 unzip -Z1 "$APK" > "$CONTENTS"
-if grep -q '^assets/www/' "$CONTENTS"; then
+if grep -Eq '^assets/(www|public)/' "$CONTENTS"; then
   echo "::error::Legacy web assets are still packaged in the native APK"
-  grep '^assets/www/' "$CONTENTS"
+  grep -E '^assets/(www|public)/' "$CONTENTS"
   exit 1
 fi
 
@@ -85,7 +86,7 @@ sha256sum "$APK" > "$HASH"
 {
   echo "APK security checks completed."
   echo "App ID: com.masjidph.navigator"
-  echo "Legacy Android web bundle: absent"
+  echo "Legacy Android web bundle (assets/www and assets/public): absent"
   echo "High-risk permission denylist: passed"
   echo "First-party unsafe API pattern check: passed"
   echo "APK signature verification: passed"
