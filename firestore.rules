@@ -113,8 +113,8 @@ service cloud.firestore {
           && (resource.data.authorUid == request.auth.uid || isAdmin());
       }
 
-      // Reports are write-only to ordinary members. Review them from a trusted
-      // administrative environment; never expose other users' reports in-app.
+      // Reports are writable by verified members; only a verified server-assigned
+      // admin claim may list, read, or dismiss them in the native moderation queue.
       match /reports/{reportId} {
         allow get, list: if isAdmin();
         allow create: if verifiedMember()

@@ -42,31 +42,31 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Install Android SDK packages
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@0f4528296b4bc09e8ae0fc7be30185a4ab435545 # v6.0.0
         with:
           gradle-version: "8.11.1"
 
       - name: Set up Python for MobSF source scan
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
         with:
           python-version: "3.12"
 
       - name: Set up Node for Firestore rules validation
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
 
@@ -98,7 +98,7 @@ jobs:
         run: firebase emulators:exec --project demo-masjidph --only firestore "node /tmp/firestore-tests/firestore-rules.test.mjs"
 
       - name: Set up Go for OSV-Scanner
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.27.x"
 
@@ -128,13 +128,24 @@ jobs:
             :app:assembleDebug \
             --stacktrace --console=plain
 
-      - name: Verify generated Gradle dependency lock
+      - name: Verify resolved dependency graph baseline
         id: lock_check
         if: always()
         continue-on-error: true
         run: |
           test -s android/app/gradle.lockfile || {
             echo "::error::No resolved Gradle lockfile was generated; dependency audit cannot be considered complete."
+            exit 1
+          }
+          test -s android/app/gradle.lockfile.sha256 || {
+            echo "::error::No reviewed dependency-graph checksum is checked in."
+            exit 1
+          }
+          (
+            cd android/app
+            sha256sum --check gradle.lockfile.sha256
+          ) || {
+            echo "::error::Resolved Android dependencies differ from the reviewed baseline. Inspect the generated lock file, review the new graph, run OSV-Scanner, and update the baseline deliberately."
             exit 1
           }
 
@@ -174,7 +185,7 @@ jobs:
           RULES_SCAN: ${{ steps.firestore_rules.outcome }}
         run: |
           failed=0
-          for item in "MobSF source scan:$SOURCE_SCAN" "Android build/lint:$BUILD_SCAN" "Gradle lock generation:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN" "Firestore rules compilation:$RULES_SCAN"; do
+          for item in "MobSF source scan:$SOURCE_SCAN" "Android build/lint:$BUILD_SCAN" "Dependency graph baseline:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN" "Firestore rules compilation:$RULES_SCAN"; do
             name="${item%%:*}"
             result="${item#*:}"
             printf '%s => %s\n' "$name" "$result"
@@ -187,7 +198,7 @@ jobs:
 
       - name: Upload security reports only (never the APK)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-security-reports
           path: |
