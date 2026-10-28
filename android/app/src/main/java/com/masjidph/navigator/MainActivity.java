@@ -1128,9 +1128,19 @@ public class MainActivity extends Activity {
         String mosqueId = activeCommunityId;
         EditText sendingInput = communityMessageInput;
         TextView sendingStatus = communityStatus;
+        com.google.firebase.firestore.DocumentReference messageRef = db
+                .collection("mosques").document(mosqueId)
+                .collection("messages").document();
+        java.util.Map<String, Object> throttleData = new java.util.HashMap<>();
+        throttleData.put("lastMessageAt", FieldValue.serverTimestamp());
+        throttleData.put("lastMessageId", messageRef.getId());
+        com.google.firebase.firestore.WriteBatch batch = db.batch();
+        batch.set(messageRef, messageData);
+        batch.set(db.collection("messageRateLimits").document(user.getUid()), throttleData,
+                com.google.firebase.firestore.SetOptions.merge());
         sendingInput.setEnabled(false);
-        db.collection("mosques").document(mosqueId).collection("messages").add(messageData)
-                .addOnSuccessListener(reference -> {
+        batch.commit()
+                .addOnSuccessListener(ignored -> {
                     if (sendingInput != null) {
                         if (communityMessageInput == sendingInput && activeCommunityId.equals(mosqueId)) {
                             sendingInput.setText("");
@@ -1141,7 +1151,12 @@ public class MainActivity extends Activity {
                 .addOnFailureListener(error -> {
                     if (sendingInput != null) sendingInput.setEnabled(true);
                     if (communityStatus == sendingStatus && sendingStatus != null) {
-                        sendingStatus.setText("Message was not sent. Check deployed Firestore rules and connection.");
+                        String reason = error instanceof com.google.firebase.firestore.FirebaseFirestoreException
+                                && ((com.google.firebase.firestore.FirebaseFirestoreException) error).getCode()
+                                == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED
+                                ? "Wait at least 5 seconds between messages and ensure your email is verified."
+                                : "Check your connection and try again.";
+                        sendingStatus.setText("Message was not sent. " + reason);
                     }
                 });
     }
