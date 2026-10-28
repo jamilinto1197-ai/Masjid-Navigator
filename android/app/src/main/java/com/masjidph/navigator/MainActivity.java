@@ -26,6 +26,7 @@ public class MainActivity extends Activity {
   private FirebaseFirestore db;
   private String tab="home";
   private boolean firebaseReady=false;
+  private String firebaseConfigError="Firebase Android setup is incomplete. The app cannot sign in until the correct Android app ID is configured.";
   private EditText emailInput,passwordInput,nameInput,locationInput,bioInput;
   private TextView status;
 
@@ -40,17 +41,27 @@ public class MainActivity extends Activity {
   }
   private void initFirebase(){
     try {
+      String androidAppId=getString(R.string.firebase_android_app_id).trim();
+      if(!androidAppId.matches("^1:885467340998:android:[0-9a-fA-F]+$")){
+        firebaseReady=false;
+        firebaseConfigError="Firebase Android setup is incomplete. Register com.masjidph.navigator in Firebase and configure its mobilesdk_app_id before signing in.";
+        return;
+      }
       if(FirebaseApp.getApps(this).isEmpty()){
         FirebaseOptions options=new FirebaseOptions.Builder()
           .setApiKey("AIzaSyBuNwIsbjxmyBM6pdzR4HVmFjAhViGIsgk")
-          .setApplicationId("1:885467340998:android:masjidphnavigator")
+          .setApplicationId(androidAppId)
           .setProjectId("masjid-109f3")
           .setGcmSenderId("885467340998")
           .setStorageBucket("masjid-109f3.firebasestorage.app").build();
         FirebaseApp.initializeApp(this,options);
       }
       auth=FirebaseAuth.getInstance(); db=FirebaseFirestore.getInstance(); firebaseReady=true;
-    } catch(Exception e){ firebaseReady=false; }
+      firebaseConfigError="";
+    } catch(Exception e){
+      firebaseReady=false;
+      firebaseConfigError="Firebase could not initialize. Verify the Firebase Android app ID, project configuration, and internet connection.";
+    }
   }
   private void showRoot(){
     root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(bg);
@@ -74,7 +85,7 @@ public class MainActivity extends Activity {
     Button create=button("Create account");create.setBackground(round(pale,14));create.setTextColor(green);form.addView(create);create.setOnClickListener(v->authenticate(true));
     Button google=button("Continue with Google");google.setBackground(round(Color.WHITE,14));google.setTextColor(green);form.addView(google);google.setOnClickListener(v->message("Google sign-in needs the Android OAuth client and SHA-1/SHA-256 fingerprints configured in Firebase. Email sign-in can be used meanwhile."));
     Button reset=button("Forgot password?");reset.setBackgroundColor(Color.TRANSPARENT);reset.setTextColor(teal);form.addView(reset);reset.setOnClickListener(v->resetPassword());
-    status=text("",13,Color.rgb(170,45,45),false);form.addView(status);body.addView(form);
+    status=text(firebaseReady?"":firebaseConfigError,13,Color.rgb(170,45,45),false);form.addView(status);body.addView(form);
     body.addView(gap(12));body.addView(text("By continuing, you agree to follow each masjid community's rules. Be respectful and protect your personal information.",12,muted,false));
   }
   private void authenticate(boolean create){
