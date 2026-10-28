@@ -10,7 +10,7 @@ The `security-hardening` branch has a security gate that runs MobSF source analy
 
 ## Native feature status on this branch
 
-- **Authentication:** Firebase email/password registration, sign-in, and password-reset flow.
+- **Authentication:** Firebase email/password registration, sign-in, and password-reset flow; native Google sign-in using Android Credential Manager, pending Firebase OAuth setup.
 - **Mosque directory:** Search and filter, optional location sorting, Firestore directory records, and launch directions in Google Maps. Starter coordinates are approximate, clearly labelled, and should be locally verified.
 - **Prayer times:** On-demand location-based time estimates using the AlAdhan HTTPS API. Confirm official times with a local masjid.
 - **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available.
@@ -26,9 +26,9 @@ The native app package is `com.masjidph.navigator` in Firebase project `masjid-1
 
 1. Register an Android app with that package name in Firebase Console.
 2. Copy its real `mobilesdk_app_id` value (the Android form is `1:885467340998:android:<hex-id>`). Do not use the Web app ID and do not make up an ID.
-3. Set the repository Actions variable `FIREBASE_ANDROID_APP_ID` to the real value so the security workflow can validate configuration.
-4. Review and deploy `firestore.rules` only after the emulator authorization tests pass. The rules have not been deployed to the production Firebase project by this repository workflow.
-5. Configure Google OAuth client IDs and signing fingerprints before enabling native Google sign-in.
+3. Set the repository Actions variable `FIREBASE_ANDROID_APP_ID` to the real value.
+4. Set `FIREBASE_WEB_CLIENT_ID` to the project's Web application OAuth client ID from Google Cloud OAuth credentials (ending in `.apps.googleusercontent.com`). The Android app now uses Android Credential Manager and Firebase Auth for Google sign-in; the OAuth client and SHA-1/SHA-256 signing fingerprints must be configured in Firebase/Google Cloud.
+5. Review and deploy `firestore.rules` only after the emulator authorization tests pass. The rules have not been deployed to the production Firebase project by this repository workflow.
 
 Never commit Firebase Admin service-account keys or other server credentials. Client SDK configuration is not a substitute for deployed security rules. Consider restricting the Firebase API key to the expected Android package/signing certificates and enabling Firebase App Check before production.
 

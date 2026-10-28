@@ -5,6 +5,9 @@ plugins {
 def firebaseAndroidAppId = providers.gradleProperty("firebaseAndroidAppId")
         .orElse(providers.environmentVariable("FIREBASE_ANDROID_APP_ID"))
         .getOrElse("")
+def firebaseWebClientId = providers.gradleProperty("firebaseWebClientId")
+        .orElse(providers.environmentVariable("FIREBASE_WEB_CLIENT_ID"))
+        .getOrElse("")
 
 android {
     namespace "com.masjidph.navigator"
@@ -17,6 +20,7 @@ android {
         versionCode 3
         versionName "2.1.0-native"
         resValue "string", "firebase_android_app_id", firebaseAndroidAppId
+        resValue "string", "default_web_client_id", firebaseWebClientId
     }
 
     buildTypes {
@@ -49,6 +53,11 @@ tasks.register("checkFirebaseAndroidConfig") {
                 "Firebase Android app ID is missing or invalid. Register package com.masjidph.navigator in Firebase and set FIREBASE_ANDROID_APP_ID (or -PfirebaseAndroidAppId) to its mobilesdk_app_id."
             )
         }
+        if (!(firebaseWebClientId ==~ /^[0-9]+-[A-Za-z0-9-]+\\.apps\\.googleusercontent\\.com$/)) {
+            throw new GradleException(
+                "Google OAuth web client ID is missing or invalid. Set FIREBASE_WEB_CLIENT_ID (or -PfirebaseWebClientId) to the project's Web application OAuth client ID."
+            )
+        }
     }
 }
 
@@ -56,4 +65,7 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:35.1.0')
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
+    implementation 'androidx.credentials:credentials:1.6.0'
+    implementation 'androidx.credentials:credentials-play-services-auth:1.6.0'
+    implementation 'com.google.android.libraries.identity.googleid:googleid:1.2.1'
 }

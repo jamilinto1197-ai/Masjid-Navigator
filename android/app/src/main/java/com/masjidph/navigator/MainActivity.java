@@ -21,6 +21,7 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
@@ -36,9 +37,20 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.text.InputFilter;
 
+import androidx.credentials.Credential;
+import androidx.credentials.CredentialManager;
+import androidx.credentials.CredentialManagerCallback;
+import androidx.credentials.CustomCredential;
+import androidx.credentials.GetCredentialRequest;
+import androidx.credentials.GetCredentialResponse;
+import androidx.credentials.exceptions.GetCredentialException;
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption;
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import com.google.firebase.auth.AuthCredential;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.GoogleAuthProvider;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.Timestamp;
@@ -290,7 +302,7 @@ public class MainActivity extends Activity {
         google.setBackground(round(Color.WHITE, 14));
         google.setTextColor(green);
         form.addView(google);
-        google.setOnClickListener(v -> message("Google sign-in needs an Android OAuth client and SHA-1/SHA-256 fingerprints configured in Firebase. Email sign-in is available when Firebase is configured."));
+        google.setOnClickListener(v -> signInWithGoogle(google));
         Button reset = button("Forgot password?");
         reset.setBackgroundColor(Color.TRANSPARENT);
         reset.setTextColor(teal);
@@ -336,6 +348,69 @@ public class MainActivity extends Activity {
         auth.sendPasswordResetEmail(email).addOnCompleteListener(this,
                 task -> message(task.isSuccessful() ? "Password reset email sent." : authMessage(task.getException())));
     }
+    private void signInWithGoogle(Button sourceButton) {
+        if (!firebaseReady || auth == null) {
+            message(firebaseConfigError);
+            return;
+        }
+        String webClientId = getString(R.string.default_web_client_id).trim();
+        if (!webClientId.matches("^[0-9]+-[A-Za-z0-9-]+\\\\.apps\\\\.googleusercontent\\\\.com$")) {
+            message("Google sign-in is not configured. Register the Firebase Android app, configure its OAuth web client, and set FIREBASE_WEB_CLIENT_ID in the repository Actions variables.");
+            return;
+        }
+        sourceButton.setEnabled(false);
+        if (status != null) status.setText("Opening Google sign-in…");
+        try {
+            CredentialManager manager = CredentialManager.create(this);
+            GetGoogleIdOption googleOption = new GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(webClientId)
+                    .setAutoSelectEnabled(false)
+                    .build();
+            GetCredentialRequest request = new GetCredentialRequest.Builder()
+                    .addCredentialOption(googleOption)
+                    .build();
+            manager.getCredentialAsync(this, request, new CancellationSignal(),
+                    command -> mainHandler.post(command),
+                    new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
+                        @Override public void onResult(GetCredentialResponse response) {
+                            Credential credential = response.getCredential();
+                            if (!(credential instanceof CustomCredential)
+                                    || !GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(credential.getType())) {
+                                sourceButton.setEnabled(true);
+                                if (status != null) status.setText("Google returned an unsupported credential. Try again or use email sign-in.");
+                                return;
+                            }
+                            try {
+                                GoogleIdTokenCredential googleCredential =
+                                        GoogleIdTokenCredential.createFrom(((CustomCredential) credential).getData());
+                                AuthCredential firebaseCredential =
+                                        GoogleAuthProvider.getCredential(googleCredential.getIdToken(), null);
+                                auth.signInWithCredential(firebaseCredential).addOnCompleteListener(MainActivity.this, task -> {
+                                    sourceButton.setEnabled(true);
+                                    if (task.isSuccessful()) {
+                                        if (status != null) status.setText("");
+                                    } else {
+                                        if (status != null) status.setText("Google sign-in failed. Verify the Firebase OAuth client and signing fingerprints.");
+                                    }
+                                });
+                            } catch (Exception e) {
+                                sourceButton.setEnabled(true);
+                                if (status != null) status.setText("Could not read the Google credential. Update the Google Identity configuration and try again.");
+                            }
+                        }
+
+                        @Override public void onError(GetCredentialException error) {
+                            sourceButton.setEnabled(true);
+                            if (status != null) status.setText("Google sign-in was cancelled or unavailable. Check OAuth configuration or use email sign-in.");
+                        }
+                    });
+        } catch (Exception e) {
+            sourceButton.setEnabled(true);
+            if (status != null) status.setText("Could not start Google sign-in. Verify the app's OAuth configuration.");
+        }
+    }
+
 
     private void showApp() {
         if (root == null) showRoot();

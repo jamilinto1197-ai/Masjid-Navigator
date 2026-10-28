@@ -31,6 +31,7 @@ concurrency:
 
 env:
   FIREBASE_ANDROID_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID }}
+  FIREBASE_WEB_CLIENT_ID: ${{ vars.FIREBASE_WEB_CLIENT_ID }}
 
 jobs:
   android-security:
