@@ -6,3 +6,8 @@ android/app/build/tmp/
 *.jks
 *.keystore
 .env
+
+# Generated Android build artifacts and local Firebase configuration
+/android/app/build/
+/android/app/google-services.json
+/downloads/*.apk
