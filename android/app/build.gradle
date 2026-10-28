@@ -2,19 +2,53 @@ plugins {
     id 'com.android.application'
 }
 
+def firebaseAndroidAppId = providers.gradleProperty("firebaseAndroidAppId")
+        .orElse(providers.environmentVariable("FIREBASE_ANDROID_APP_ID"))
+        .getOrElse("")
+
 android {
     namespace "com.masjidph.navigator"
     compileSdk 35
+
     defaultConfig {
         applicationId "com.masjidph.navigator"
         minSdk 24
         targetSdk 35
-        versionCode 2
-        versionName "2.0.0-native"
+        versionCode 3
+        versionName "2.1.0-native"
+        resValue "string", "firebase_android_app_id", firebaseAndroidAppId
     }
+
     buildTypes {
         debug { }
-        release { minifyEnabled false; shrinkResources false }
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+// Lock resolved dependencies during the security workflow so OSV-Scanner can
+// inspect the exact versions selected for this build.
+dependencyLocking {
+    lockAllConfigurations()
+}
+
+tasks.register("resolveAllDependenciesForSecurity") {
+    doLast {
+        configurations.findAll { it.canBeResolved }.each { configuration ->
+            configuration.resolve()
+        }
+    }
+}
+
+tasks.register("checkFirebaseAndroidConfig") {
+    doLast {
+        if (!(firebaseAndroidAppId ==~ /^1:885467340998:android:[0-9a-fA-F]+$/)) {
+            throw new GradleException(
+                "Firebase Android app ID is missing or invalid. Register package com.masjidph.navigator in Firebase and set FIREBASE_ANDROID_APP_ID (or -PfirebaseAndroidAppId) to its mobilesdk_app_id."
+            )
+        }
     }
 }
 
