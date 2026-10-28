@@ -44,8 +44,9 @@ try {
   });
 
   const anonymous = env.unauthenticatedContext().firestore();
-  const alice = env.authenticatedContext("alice").firestore();
-  const bob = env.authenticatedContext("bob").firestore();
+  const alice = env.authenticatedContext("alice", { email_verified: true }).firestore();
+  const bob = env.authenticatedContext("bob", { email_verified: true }).firestore();
+  const unverified = env.authenticatedContext("unverified", { email_verified: false }).firestore();
 
   await test("mosque directory is publicly readable", async () => {
     await assertSucceeds(getDocs(collection(anonymous, "mosques")));
@@ -134,6 +135,17 @@ try {
 
   await test("only signed-in members can read community messages", async () => {
     await assertFails(getDocs(collection(anonymous, "mosques", "test-room", "messages")));
+  });
+
+  await test("unverified password accounts cannot read or post community messages or read profiles", async () => {
+    await assertFails(getDocs(collection(unverified, "mosques", "test-room", "messages")));
+    await assertFails(setDoc(doc(unverified, "mosques", "test-room", "messages", "unverified-message"), {
+      authorUid: "unverified",
+      authorName: "Unverified",
+      text: "This write should be rejected",
+      createdAt: serverTimestamp()
+    }));
+    await assertFails(getDoc(doc(unverified, "users", "unverified")));
   });
 
   await test("a signed-in member can post a well-formed message as themselves", async () => {
