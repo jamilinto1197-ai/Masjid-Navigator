@@ -15,7 +15,7 @@
 <body>
 <header><div class="tag">Philippines · Muslim community</div><h1>🕌 MasjidPH Navigator</h1><p>Find a masjid, orient your Qibla, and plan your salah.</p></header>
 <main class="wrap">
-<section class="card" id="accountCard"><h2>Sign in to MasjidPH Navigator</h2><p class="auth-note">Use your email to create an account or sign in. Account sign-in can later sync preferences across your devices once Firebase is configured.</p><div id="authSignedOut"><form id="authForm" class="auth-form"><label>Email address<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required></label><div class="auth-actions"><button type="submit" id="authSignIn">Sign in</button><button type="button" class="secondary" id="authCreate">Create account</button></div></form><div class="row" style="margin-top:8px"><button type="button" class="secondary" id="authReset">Reset password</button></div></div><div id="authSignedIn" hidden><div class="auth-user"><span>Signed in as <strong id="authUserEmail"></strong></span><button type="button" id="authSignOut">Sign out</button></div></div><p id="authStatus" class="auth-note" aria-live="polite">Email sign-in requires the app owner to finish Firebase setup. Sign-in will not be simulated or stored as a fake local account.</p></section>
+<section class="card" id="accountCard"><h2>Sign in to MasjidPH Navigator</h2><p class="auth-note">Use your email to create an account or sign in. Account sign-in can later sync preferences across your devices once Firebase is configured.</p><div id="authSignedOut"><form id="authForm" class="auth-form"><label>Email address<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required></label><div class="auth-actions"><button type="submit" id="authSignIn">Sign in</button><button type="button" class="secondary" id="authCreate">Create account</button></div></form><div class="row" style="margin-top:8px"><button type="button" class="secondary" id="authGoogle">Continue with Google</button><button type="button" class="secondary" id="authReset">Reset password</button></div></div><div id="authSignedIn" hidden><div class="auth-user"><span>Signed in as <strong id="authUserEmail"></strong></span><button type="button" id="authSignOut">Sign out</button></div></div><p id="authStatus" class="auth-note" aria-live="polite">Email sign-in requires the app owner to finish Firebase setup. Sign-in will not be simulated or stored as a fake local account.</p></section>
 <section class="card"><h2>Find a masjid</h2><p class="hint">Search the starter directory by name, city, or province. Use your location to sort by distance.</p><div class="row"><input id="search" aria-label="Search mosques" placeholder="Search mosque or location"><button id="locate">Use my location</button></div><p id="locationStatus" class="hint" aria-live="polite">Location is off until you tap the button.</p><div class="map-actions row"><button id="showMap" class="secondary" type="button">Show map</button><button id="mapLocate" type="button">Center on me</button></div><div id="map" aria-label="Map showing masjids"></div><p class="hint">Map needs an internet connection. Tap a marker, then Navigate for turn-by-turn directions in Google Maps.</p><div id="mosques"></div></section><section id="mosqueDetails" class="card" hidden aria-live="polite"></section>
 <section class="card"><h2>Qibla direction</h2><p class="hint">Direction from your coordinates to the Kaaba in Makkah. This is a calculated bearing, not a live compass reading.</p><div class="row"><button id="qiblaBtn">Calculate from my location</button></div><p id="qiblaResult" aria-live="polite">Tap the button and allow location access.</p></section>
 <section class="card"><h2>Prayer-time guide</h2><p class="hint">Fetch daily prayer times from an online prayer-time service using your coordinates. For official local times, follow your masjid or recognized Philippine Islamic authority.</p><div class="row"><button id="prayerBtn">Estimate for my location</button></div><p id="prayerStatus" class="hint" aria-live="polite">Location is needed for local estimates.</p><div id="prayers" class="grid"></div></section>
@@ -62,7 +62,7 @@ $('qiblaBtn').addEventListener('click',async()=>{const el=$('qiblaResult');el.te
 function showMosqueDetails(m){if(!m)return;const el=$('mosqueDetails');const km=current?distance(current.lat,current.lon,m.lat,m.lon).toFixed(1)+' km from you':'Enable location to calculate distance';el.hidden=false;el.innerHTML='<h2>'+escapeHtml(m.name)+'</h2><p>'+escapeHtml(m.city)+', '+escapeHtml(m.province)+'</p><div class="details-grid"><div class="detail-item"><span class="hint">Coordinates</span><b>'+m.lat.toFixed(5)+', '+m.lon.toFixed(5)+'</b></div><div class="detail-item"><span class="hint">Distance</span><b>'+km+'</b></div><div class="detail-item"><span class="hint">Facilities</span><b>Not verified</b></div><div class="detail-item"><span class="hint">Prayer timetable</span><b>Confirm with masjid</b></div></div><p class="hint">This directory entry is not yet fully verified. Exact street address, imam/contact details, Jumu’ah schedule, women’s prayer area, wudu facilities, accessibility and community services have not been confirmed. Please verify locally before relying on this listing.</p><div class="row"><button type="button" onclick="navigateTo({lat:'+m.lat+',lon:'+m.lon+'})">Navigate</button><button type="button" class="secondary" onclick="window.open(\'https://www.openstreetmap.org/?mlat='+m.lat+'&mlon='+m.lon+'#map=17/'+m.lat+'/'+m.lon+'\',\'_blank\')">View map</button><button type="button" class="secondary" onclick="document.getElementById(\'mosqueDetails\').hidden=true">Close details</button></div>';el.scrollIntoView({behavior:'smooth',block:'center'})}
 const alarmKeys=['Fajr','Dhuhr','Asr','Maghrib','Isha'];
 function loadAlarmSettings(){let cfg={};try{cfg=JSON.parse(localStorage.getItem('masjidphAlarmSettings')||'{}')}catch(e){};$('prayerAlarmOptions').innerHTML=alarmKeys.map(n=>'<div class="checkrow"><input type="checkbox" id="alarm_'+n+'" '+(cfg.prayers?.[n]!==false?'checked':'')+'><label for="alarm_'+n+'">'+n+' alarm</label></div>').join('');$('alarmTune').value=cfg.tune||'adhan';$('prayerOffset').value=String(cfg.offset??0);$('suhoorEnabled').checked=!!cfg.suhoor;$('iftarEnabled').checked=!!cfg.iftar;$('ramadanOnly').checked=cfg.ramadanOnly!==false;$('suhoorOffset').value=String(cfg.suhoorOffset||45)}
-function saveAlarmSettings(){const cfg={prayers:{},tune:$('alarmTune').value,offset:Number($('prayerOffset').value),suhoor:$('suhoorEnabled').checked,iftar:$('iftarEnabled').checked,ramadanOnly:$('ramadanOnly').checked,suhoorOffset:Number($('suhoorOffset').value)};alarmKeys.forEach(n=>cfg.prayers[n]=$('alarm_'+n).checked);localStorage.setItem('masjidphAlarmSettings',JSON.stringify(cfg));$('alarmStatus').textContent='Settings saved on this device. Keep the app open for web-based reminders; Android may pause timers in the background.';scheduleWebAlarms()}
+function saveAlarmSettings(){const cfg={prayers:{},tune:$('alarmTune').value,offset:Number($('prayerOffset').value),suhoor:$('suhoorEnabled').checked,iftar:$('iftarEnabled').checked,ramadanOnly:$('ramadanOnly').checked,suhoorOffset:Number($('suhoorOffset').value)};alarmKeys.forEach(n=>cfg.prayers[n]=$('alarm_'+n).checked);localStorage.setItem('masjidphAlarmSettings',JSON.stringify(cfg));window.dispatchEvent(new CustomEvent('masjidph-settings-saved',{detail:cfg}));$('alarmStatus').textContent='Settings saved on this device. Keep the app open for web-based reminders; Android may pause timers in the background.';scheduleWebAlarms()}
 function isRamadan(){try{return new Intl.DateTimeFormat('en-u-ca-islamic', {month:'numeric'}).format(new Date())==='9'}catch(e){return false}}
 function parsePrayerDateTime(time,dayOffset=0){if(!time)return null;const m=String(time).match(/(\d{1,2}):(\d{2})/);if(!m)return null;const d=new Date();d.setDate(d.getDate()+dayOffset);d.setHours(Number(m[1]),Number(m[2]),0,0);return d}
 function playAlarm(){const cfg=JSON.parse(localStorage.getItem('masjidphAlarmSettings')||'{}');try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const sequence=cfg.tune==='beep'?[880]:cfg.tune==='soft'?[523,659,784]:[659,784,659,523,659];let at=ctx.currentTime;sequence.forEach(freq=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(.13,at+.03);gain.gain.exponentialRampToValueAtTime(.0001,at+.35);osc.connect(gain);gain.connect(ctx.destination);osc.start(at);osc.stop(at+.38);at+=.42});setTimeout(()=>ctx.close(),3000)}catch(e){}}
@@ -81,7 +81,8 @@ initMap();
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
 // Replace these values with the Web App config from your Firebase project.
 const firebaseConfig = {
   apiKey: "AIzaSyBuNwIsbjxmyBM6pdzR4HVmFjAhViGIsgk",
@@ -98,9 +99,60 @@ const signedInEl = document.getElementById('authSignedIn');
 const emailEl = document.getElementById('authEmail');
 const passwordEl = document.getElementById('authPassword');
 let auth = null;
+let db = null;
+let signedInUser = null;
 const configured = firebaseConfig.apiKey !== 'YOUR_FIREBASE_API_KEY' &&
   firebaseConfig.projectId !== 'YOUR_FIREBASE_PROJECT_ID' &&
   firebaseConfig.appId !== 'YOUR_FIREBASE_APP_ID';
+async function loadMosquesFromFirestore() {
+  if (!db) return;
+  try {
+    const snapshot = await getDocs(collection(db, 'mosques'));
+    if (snapshot.empty) {
+      statusEl.textContent = signedInUser ? 'Signed in. Firestore is connected; showing the built-in mosque directory until verified records are published.' : 'Firestore connected; showing built-in mosque directory until verified records are published.';
+      return;
+    }
+    const records = snapshot.docs.map(s => {
+      const d = s.data();
+      return {name:d.name || d.mosqueName || 'Unnamed masjid',city:d.city || d.addressCity || '',province:d.province || d.region || '',lat:Number(d.lat ?? d.latitude),lon:Number(d.lon ?? d.lng ?? d.longitude),...(d.address?{address:d.address}:{})};
+    }).filter(m=>m.name && Number.isFinite(m.lat) && Number.isFinite(m.lon) && m.lat>=-90 && m.lat<=90 && m.lon>=-180 && m.lon<=180);
+    if (records.length) {
+      mosques.splice(0, mosques.length, ...records);
+      render();
+      statusEl.textContent = 'Loaded ' + records.length + ' mosque record(s) from Firestore.';
+    }
+  } catch(error) {
+    console.warn('Firestore mosque read failed; keeping built-in directory.', error);
+    statusEl.textContent = 'Signed in status is available; mosque directory is using built-in listings because Firestore could not be read.';
+  }
+}
+async function syncUserSettings(user) {
+  if (!db || !user) return;
+  try {
+    const ref = doc(db, 'userSettings', user.uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const remote = snap.data();
+      if (remote.alarmSettings && typeof remote.alarmSettings === 'object') {
+        localStorage.setItem('masjidphAlarmSettings', JSON.stringify(remote.alarmSettings));
+        loadAlarmSettings();
+        scheduleWebAlarms();
+      }
+    } else {
+      let alarmSettings = {};
+      try { alarmSettings = JSON.parse(localStorage.getItem('masjidphAlarmSettings') || '{}'); } catch(e) {}
+      await setDoc(ref, { alarmSettings, updatedAt: new Date().toISOString() });
+    }
+  } catch(error) {
+    console.warn('Could not sync user settings.', error);
+    statusEl.textContent = 'Signed in, but settings sync is unavailable. Check Firestore rules.';
+  }
+}
+window.addEventListener('masjidph-settings-saved', async event => {
+  if (!db || !signedInUser) return;
+  try { await setDoc(doc(db, 'userSettings', signedInUser.uid), { alarmSettings: event.detail, updatedAt: new Date().toISOString() }, { merge: true }); }
+  catch(error) { console.warn('Could not save settings to Firestore.', error); statusEl.textContent = 'Settings saved on this device, but cloud sync failed. Check Firestore rules.'; }
+});
 function authError(error) {
   const map = {
     'auth/invalid-email':'Please enter a valid email address.',
@@ -122,14 +174,20 @@ if(configured) {
   try {
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    onAuthStateChanged(auth, user => {
+    db = getFirestore(app);
+    onAuthStateChanged(auth, async user => {
+      signedInUser = user || null;
       signedOutEl.hidden=!!user;
       signedInEl.hidden=!user;
       document.getElementById('authUserEmail').textContent=user?.email||'';
-      if(user) statusEl.textContent='Signed in. Your account is authenticated.';
-      else statusEl.textContent='You are signed out.';
+      if(user) {
+        statusEl.textContent='Signed in. Loading your settings and mosque directory…';
+        await syncUserSettings(user);
+      } else statusEl.textContent='You are signed out.';
+      await loadMosquesFromFirestore();
     });
-  } catch(error) { statusEl.textContent='Could not initialize sign-in: '+authError(error); }
+    loadMosquesFromFirestore();
+  } catch(error) { statusEl.textContent='Could not initialize Firebase: '+authError(error); }
 }
 document.getElementById('authForm').addEventListener('submit',async event=>{
   event.preventDefault(); if(!requireConfigured()) return;
@@ -149,6 +207,12 @@ document.getElementById('authReset').addEventListener('click',async()=>{
   if(!emailEl.value.trim()){statusEl.textContent='Enter your email address first.';return}
   statusEl.textContent='Sending password reset email…';
   try { await sendPasswordResetEmail(auth,emailEl.value.trim()); statusEl.textContent='Password reset email sent. Check your inbox and spam folder.'; }
+  catch(error) { statusEl.textContent=authError(error); }
+});
+document.getElementById('authGoogle').addEventListener('click',async()=>{
+  if(!requireConfigured()) return;
+  statusEl.textContent='Opening Google sign-in…';
+  try { await signInWithPopup(auth, new GoogleAuthProvider()); }
   catch(error) { statusEl.textContent=authError(error); }
 });
 document.getElementById('authSignOut').addEventListener('click',async()=>{
