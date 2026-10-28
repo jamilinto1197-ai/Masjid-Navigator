@@ -40,6 +40,12 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.text.InputFilter;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+
 import androidx.credentials.Credential;
 import androidx.credentials.CredentialManager;
 import androidx.credentials.CredentialManagerCallback;
@@ -203,9 +209,14 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
+        // API 35+ enforces edge-to-edge; apply system-bar insets to the native layout.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(green);
         getWindow().setNavigationBarColor(Color.WHITE);
-        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(
+                getWindow(), getWindow().getDecorView());
+        bars.setAppearanceLightStatusBars(false);
+        bars.setAppearanceLightNavigationBars(true);
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mosqueItems.addAll(starterMosques());
@@ -292,7 +303,18 @@ public class MainActivity extends Activity {
         scroll.setFillViewport(true);
         scroll.addView(body);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            // Let the header background extend behind the status bar while keeping text readable.
+            header.setPadding(dp(20), dp(16) + systemBars.top, dp(20), dp(16));
+            // Keep the bottom navigation/content above the transparent navigation-bar region.
+            view.setPadding(0, 0, 0, systemBars.bottom);
+            return windowInsets;
+        });
         setContentView(root);
+        ViewCompat.requestApplyInsets(root);
     }
 
     private void showLogin() {
