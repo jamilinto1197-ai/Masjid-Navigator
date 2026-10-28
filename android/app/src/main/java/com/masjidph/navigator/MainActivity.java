@@ -687,11 +687,17 @@ public class MainActivity extends Activity {
                     mosqueItems.clear();
                     mosqueItems.addAll(loaded);
                     if (mosqueStatus != null) mosqueStatus.setText("Loaded " + loaded.size() + " mosque listings from Firestore. Verify details before travel.");
-                } else if (mosqueStatus != null) {
-                    mosqueStatus.setText("Firestore has no mosque records yet. Showing starter listings that need local verification.");
+                } else {
+                    // Allow a later Explore visit to retry when the collection is populated.
+                    mosqueLoadRequested = false;
+                    if (mosqueStatus != null) {
+                        mosqueStatus.setText("Firestore has no mosque records yet. Showing starter listings that need local verification.");
+                    }
                 }
                 renderMosqueResults();
             }).addOnFailureListener(error -> {
+                // A transient network/rules error must not permanently disable retries for this session.
+                mosqueLoadRequested = false;
                 if (mosqueStatus != null) mosqueStatus.setText("Firestore is unavailable. Showing starter listings that need local verification.");
                 renderMosqueResults();
             });
@@ -817,7 +823,7 @@ public class MainActivity extends Activity {
         intro.setBackground(round(green, 20));
         intro.addView(text("Your masjid, your community", 22, Color.WHITE, true));
         intro.addView(gap(8));
-        intro.addView(text("Choose a published masjid to open its live discussion room. Rooms are currently open to signed-in members; keep messages respectful and never share private information.",
+        intro.addView(text("Choose a published masjid to open its live discussion room. Rooms are open to verified signed-in members; keep messages respectful and never share private information.",
                 13, Color.rgb(226, 247, 235), false));
         body.addView(intro);
 
@@ -849,7 +855,7 @@ public class MainActivity extends Activity {
         Button send = button("Send message");
         chatCard.addView(send);
         send.setOnClickListener(v -> sendCommunityMessage());
-        chatCard.addView(text("Long-press a message to report it, or to delete your own message. Reports are stored for administrator review; an administrator moderation console is not yet included.",
+        chatCard.addView(text("Long-press a message to report it, or to delete your own message. Verified administrators can review reports in the moderation queue.",
                 12, muted, false));
         body.addView(chatCard);
 
@@ -1514,6 +1520,7 @@ public class MainActivity extends Activity {
 
     private final class CompassDial extends View {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path arrow = new Path();
         private float relativeBearing = 0f;
         private float orientationHeading = 0f;
 
@@ -1556,7 +1563,7 @@ public class MainActivity extends Activity {
 
             canvas.save();
             canvas.rotate(relativeBearing, cx, cy);
-            Path arrow = new Path();
+            arrow.reset();
             arrow.moveTo(cx, cy - radius * 0.70f);
             arrow.lineTo(cx - dp(12), cy + dp(12));
             arrow.lineTo(cx, cy + dp(5));
