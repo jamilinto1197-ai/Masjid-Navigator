@@ -97,6 +97,8 @@ service cloud.firestore {
           && request.resource.data.messageId.size() > 0
           && request.resource.data.messageId.size() <= 128
           && request.resource.data.reason in ['Spam', 'Abuse or harassment', 'Misleading information', 'Other']
+          && exists(/databases/$(database)/documents/mosques/$(mosqueId)/messages/$(request.resource.data.messageId))
+          && get(/databases/$(database)/documents/mosques/$(mosqueId)/messages/$(request.resource.data.messageId)).data.authorUid != request.auth.uid
           && request.resource.data.createdAt == request.time;
         allow update, delete: if false;
       }
