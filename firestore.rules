@@ -65,6 +65,41 @@ service cloud.firestore {
     match /mosques/{mosqueId} {
       allow get, list: if true;
       allow create, update, delete: if false;
+
+      // Authenticated members can read public mosque discussion rooms.
+      // Messages are immutable; authors can delete only their own messages.
+      match /messages/{messageId} {
+        allow get, list: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['authorUid', 'authorName', 'text', 'createdAt'])
+          && request.resource.data.keys().hasAll(['authorUid', 'authorName', 'text', 'createdAt'])
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() > 0
+          && request.resource.data.authorName.size() <= 60
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+      }
+
+      // Reports are write-only to ordinary members. Review them from a trusted
+      // administrative environment; never expose other users' reports in-app.
+      match /reports/{reportId} {
+        allow get, list: if false;
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['reporterUid', 'messageId', 'reason', 'createdAt'])
+          && request.resource.data.keys().hasAll(['reporterUid', 'messageId', 'reason', 'createdAt'])
+          && request.resource.data.reporterUid == request.auth.uid
+          && request.resource.data.messageId is string
+          && request.resource.data.messageId.size() > 0
+          && request.resource.data.messageId.size() <= 128
+          && request.resource.data.reason in ['Spam', 'Abuse or harassment', 'Misleading information', 'Other']
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
     }
 
     // Each member can access and update only their own profile document.
