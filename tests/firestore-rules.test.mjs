@@ -100,6 +100,31 @@ try {
     await assertSucceeds(setDoc(doc(alice, "userSettings", "alice"), validSettings));
   });
 
+  await test("legacy web settings can initialize with an empty alarm map", async () => {
+    await assertSucceeds(setDoc(doc(alice, "userSettings", "alice"), {
+      alarmSettings: {},
+      updatedAt: new Date().toISOString()
+    }));
+  });
+
+  await test("partial legacy prayer preferences are accepted only with valid values", async () => {
+    await assertSucceeds(setDoc(doc(alice, "userSettings", "alice"), {
+      alarmSettings: { prayers: { Fajr: false }, offset: -5 },
+      updatedAt: new Date().toISOString()
+    }));
+  });
+
+  await test("alarm preferences reject unknown keys and invalid types", async () => {
+    await assertFails(setDoc(doc(alice, "userSettings", "alice"), {
+      alarmSettings: { ...validSettings.alarmSettings, hiddenAdmin: true },
+      updatedAt: new Date().toISOString()
+    }));
+    await assertFails(setDoc(doc(alice, "userSettings", "alice"), {
+      alarmSettings: { prayers: { Fajr: "off" } },
+      updatedAt: new Date().toISOString()
+    }));
+  });
+
   await test("prayer settings reject unsupported alarm values", async () => {
     await assertFails(setDoc(doc(alice, "userSettings", "alice"), {
       ...validSettings,
