@@ -83,10 +83,16 @@ jobs:
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@15.34.1
 
-      - name: Compile Firestore rules in the local emulator
+      - name: Install pinned Firestore rules test dependencies
+        run: npm install --prefix /tmp/firestore-tests --no-save --package-lock=false firebase@12.19.0 @firebase/rules-unit-testing@5.0.2
+
+      - name: Prepare Firestore rules test
+        run: cp tests/firestore-rules.test.mjs /tmp/firestore-tests/firestore-rules.test.mjs
+
+      - name: Compile Firestore rules and run authorization tests
         id: firestore_rules
         continue-on-error: true
-        run: firebase emulators:exec --project demo-masjidph --only firestore "echo Firestore rules compiled by the emulator."
+        run: firebase emulators:exec --project demo-masjidph --only firestore "node /tmp/firestore-tests/firestore-rules.test.mjs"
 
       - name: Set up Go for OSV-Scanner
         uses: actions/setup-go@v6
