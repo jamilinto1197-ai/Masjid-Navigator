@@ -21,6 +21,17 @@ public final class PrayerReminderReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent == null) return;
+        String action = intent.getAction();
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action)
+                || Intent.ACTION_TIME_CHANGED.equals(action)
+                || Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
+            SharedPreferences schedulePrefs = context.getSharedPreferences(
+                    PrayerScheduleWorker.PREFS_NAME, Context.MODE_PRIVATE);
+            if (schedulePrefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false)) {
+                PrayerScheduleWorker.enqueueNow(context);
+            }
+            return;
+        }
         SharedPreferences prefs = context.getSharedPreferences(
                 PrayerScheduleWorker.PREFS_NAME, Context.MODE_PRIVATE);
         if (!prefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false)) return;
@@ -54,11 +65,18 @@ public final class PrayerReminderReceiver extends BroadcastReceiver {
     }
 
     static void schedule(Context context, String prayer, long atMillis) {
-        if (!isKnownPrayer(prayer) || atMillis <= System.currentTimeMillis()) return;
+        if (!isKnownPrayer(prayer)) return;
         android.app.AlarmManager alarms =
                 (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarms == null) return;
         PendingIntent pending = alarmPendingIntent(context, prayer, PendingIntent.FLAG_UPDATE_CURRENT);
+        // Clear a previous schedule first so moving location/time cannot leave
+        // an obsolete reminder active when the new prayer time has already passed.
+        alarms.cancel(pending);
+        if (atMillis <= System.currentTimeMillis()) {
+            pending.cancel();
+            return;
+        }
         if (Build.VERSION.SDK_INT >= 23) {
             alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, atMillis, pending);
         } else {
