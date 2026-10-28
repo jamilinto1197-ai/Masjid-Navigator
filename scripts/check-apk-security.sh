@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APK="${1:-android/app/build/outputs/apk/debug/app-debug.apk}"
+REPORT_DIR="${2:-android/app/build/reports/security}"
+ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+BUILD_TOOLS_VERSION="35.0.0"
+
+mkdir -p "$REPORT_DIR"
+if [[ ! -f "$APK" ]]; then
+  echo "::error::APK not found at $APK"
+  exit 1
+fi
+if [[ -z "$ANDROID_SDK_ROOT" ]]; then
+  echo "::error::ANDROID_HOME or ANDROID_SDK_ROOT is not set"
+  exit 1
+fi
+
+AAPT="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS_VERSION/aapt"
+APKSIGNER="$ANDROID_SDK_ROOT/build-tools/$BUILD_TOOLS_VERSION/apksigner"
+for tool in "$AAPT" "$APKSIGNER"; do
+  if [[ ! -x "$tool" ]]; then
+    echo "::error::Required Android SDK tool not found: $tool"
+    exit 1
+  fi
+done
+
+BADGING="$REPORT_DIR/apk-badging.txt"
+PERMISSIONS="$REPORT_DIR/apk-permissions.txt"
+MANIFEST_TREE="$REPORT_DIR/merged-manifest-tree.txt"
+SIGNATURE="$REPORT_DIR/apk-signature.txt"
+CONTENTS="$REPORT_DIR/apk-contents.txt"
+HASH="$REPORT_DIR/apk-sha256.txt"
+
+"$AAPT" dump badging "$APK" > "$BADGING"
+if ! grep -Fq "package: name='com.masjidph.navigator'" "$BADGING"; then
+  echo "::error::Unexpected application ID in compiled APK"
+  cat "$BADGING"
+  exit 1
+fi
+
+"$AAPT" dump permissions "$APK" > "$PERMISSIONS"
+"$AAPT" dump xmltree "$APK" AndroidManifest.xml > "$MANIFEST_TREE"
+
+# These capabilities have no legitimate use in the current mosque finder.
+# A dependency adding one of them must be reviewed explicitly before approval.
+DENIED_PERMISSION_PATTERN='android\.permission\.(READ_SMS|RECEIVE_SMS|SEND_SMS|RECEIVE_MMS|READ_CONTACTS|WRITE_CONTACTS|CALL_PHONE|READ_CALL_LOG|WRITE_CALL_LOG|RECORD_AUDIO|CAMERA|ACCESS_BACKGROUND_LOCATION|MANAGE_EXTERNAL_STORAGE|SYSTEM_ALERT_WINDOW|REQUEST_INSTALL_PACKAGES|QUERY_ALL_PACKAGES|RECEIVE_BOOT_COMPLETED|BIND_ACCESSIBILITY_SERVICE|BIND_DEVICE_ADMIN)'
+if grep -E "$DENIED_PERMISSION_PATTERN" "$PERMISSIONS"; then
+  echo "::error::APK requests a high-risk permission that is not approved for this app"
+  exit 1
+fi
+
+# Native migration must not accidentally package the old WebView/PWA bundle.
+unzip -Z1 "$APK" > "$CONTENTS"
+if grep -q '^assets/www/' "$CONTENTS"; then
+  echo "::error::Legacy web assets are still packaged in the native APK"
+  grep '^assets/www/' "$CONTENTS"
+  exit 1
+fi
+
+# Do not allow unsafe dynamic-code or WebView trust overrides in first-party Java.
+if grep -RInE 'DexClassLoader|PathClassLoader|Runtime\.getRuntime\(\)\.exec|ProcessBuilder|addJavascriptInterface|onReceivedSslError|\.proceed\(\)' android/app/src/main/java; then
+  echo "::error::Review unsafe dynamic code, command execution, or WebView APIs in first-party source"
+  exit 1
+fi
+
+"$APKSIGNER" verify --verbose --print-certs "$APK" > "$SIGNATURE"
+sha256sum "$APK" > "$HASH"
+
+{
+  echo "APK security checks completed."
+  echo "App ID: com.masjidph.navigator"
+  echo "Legacy Android web bundle: absent"
+  echo "High-risk permission denylist: passed"
+  echo "First-party unsafe API pattern check: passed"
+  echo "APK signature verification: passed"
+  cat "$HASH"
+} | tee "$REPORT_DIR/summary.txt"
