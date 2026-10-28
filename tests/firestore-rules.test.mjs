@@ -120,6 +120,24 @@ try {
     }));
   });
 
+  await test("members cannot create chat rooms beneath non-existent mosques", async () => {
+    await assertFails(setDoc(doc(alice, "mosques", "does-not-exist", "messages", "ghost"), {
+      authorUid: "alice",
+      authorName: "Alice",
+      text: "This must be denied",
+      createdAt: serverTimestamp()
+    }));
+  });
+
+  await test("messages cannot be edited after submission", async () => {
+    await assertFails(setDoc(doc(alice, "mosques", "test-room", "messages", "message-1"), {
+      authorUid: "alice",
+      authorName: "Alice",
+      text: "Edited message",
+      createdAt: serverTimestamp()
+    }));
+  });
+
   await test("message writes cannot impersonate another user or exceed limits", async () => {
     await assertFails(setDoc(doc(bob, "mosques", "test-room", "messages", "spoof"), {
       authorUid: "alice",
