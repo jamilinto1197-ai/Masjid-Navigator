@@ -19,6 +19,19 @@ service cloud.firestore {
       return verifiedMember() && request.auth.uid == userId;
     }
 
+    // A message and this member's throttle record must be written atomically.
+    // Binding the one permitted message ID also prevents a batch from creating
+    // multiple chat messages against a single rate-limit update.
+    function validMessageThrottle(messageId) {
+      let path = /databases/$(database)/documents/messageRateLimits/$(request.auth.uid);
+      return existsAfter(path)
+        && getAfter(path).data.lastMessageAt == request.time
+        && getAfter(path).data.lastMessageId == messageId
+        && (!exists(path)
+            || (get(path).data.lastMessageAt is timestamp
+                && request.time >= get(path).data.lastMessageAt + duration.value(5, 's')));
+    }
+
     function validTimestamp(value) {
       return value is int || value is string;
     }
@@ -91,7 +104,8 @@ service cloud.firestore {
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
           && request.resource.data.text.size() <= 1000
-          && request.resource.data.createdAt == request.time;
+          && request.resource.data.createdAt == request.time
+          && validMessageThrottle(messageId);
         allow update: if false;
         allow delete: if verifiedMember()
           && (resource.data.authorUid == request.auth.uid || isAdmin());
@@ -115,6 +129,32 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if isAdmin();
       }
+    }
+
+    // A user can update only their own server-timestamped chat throttle record.
+    // A valid chat message must reference the matching record via getAfter().
+    match /messageRateLimits/{userId} {
+      allow get: if owns(userId);
+      allow list: if false;
+      allow create: if owns(userId)
+        && request.resource.data.keys().hasOnly(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.keys().hasAll(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.lastMessageId is string
+        && request.resource.data.lastMessageId.size() > 0
+        && request.resource.data.lastMessageId.size() <= 128;
+      allow update: if owns(userId)
+        && resource.data.keys().hasOnly(['lastMessageAt', 'lastMessageId'])
+        && resource.data.keys().hasAll(['lastMessageAt', 'lastMessageId'])
+        && resource.data.lastMessageAt is timestamp
+        && request.time >= resource.data.lastMessageAt + duration.value(5, 's')
+        && request.resource.data.keys().hasOnly(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.keys().hasAll(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.lastMessageId is string
+        && request.resource.data.lastMessageId.size() > 0
+        && request.resource.data.lastMessageId.size() <= 128;
+      allow delete: if false;
     }
 
     // Each member can access and update only their own profile document.
