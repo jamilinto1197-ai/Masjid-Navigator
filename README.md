@@ -6,14 +6,14 @@ MasjidPH Navigator is being migrated into a native Android application for disco
 
 **APK distribution is paused.** A previous debug APK was flagged by Android Phone Manager and four VirusTotal engines. That APK was removed from the default branch. Do not install copies of it or bypass security alerts.
 
-The `security-hardening` branch has a security gate that runs MobSF source analysis, a Gradle dependency lock and OSV audit, Android lint/build, compiled APK checks, and Firestore authorization tests. Its workflow publishes security reports only, never an APK. A green compile alone is not a malware verdict.
+The `security-hardening` branch has a security gate that runs MobSF source analysis, a Gradle dependency lock and OSV audit, Android unit tests, Android lint/build, compiled APK checks, and Firestore authorization tests. The APK inspection rejects both legacy `assets/www` and Capacitor `assets/public` bundles because the native activity does not use a WebView. Its workflow publishes security reports only, never an APK. A green compile alone is not a malware verdict.
 
 ## Native feature status on this branch
 
 - **Authentication:** Firebase email/password registration, sign-in, and password-reset flow; native Google sign-in using Android Credential Manager, pending Firebase OAuth setup.
 - **Mosque directory:** Search and filter, optional location sorting, Firestore directory records, and launch directions in Google Maps. Starter coordinates are approximate, clearly labelled, and should be locally verified.
 - **Prayer times:** On-demand location-based time estimates using the AlAdhan HTTPS API. Confirm official times with a local masjid.
-- **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available.
+- **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available. The compass rose now rotates with corrected true heading; bearing math has automated unit tests.
 - **Profiles:** Member profile read/write with client-side length limits and Firestore ownership rules.
 - **Community:** Mosque-specific text chat, realtime reads, own-message deletion, and reporting. Rooms are currently open to all signed-in users; membership approval, spam controls, and an administrator moderation interface are not yet implemented.
 - **Not complete:** Native Google sign-in, reliable background prayer alarms/notifications, in-app map tiles, admin tooling, and physical-device / release testing.
