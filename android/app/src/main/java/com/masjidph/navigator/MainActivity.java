@@ -185,7 +185,7 @@ public class MainActivity extends Activity {
                 trueHeading = normalizeDegrees(magneticHeading + field.getDeclination());
             }
             double relative = normalizeDegrees(qiblaBearing - trueHeading);
-            compassDial.setRelativeBearing((float) relative);
+            compassDial.setOrientation((float) trueHeading, (float) relative);
             if (qiblaHeading != null) {
                 qiblaHeading.setText(String.format(Locale.getDefault(),
                         "Compass heading: %.0f° true north\nQibla bearing: %.0f° true north",
@@ -997,7 +997,8 @@ public class MainActivity extends Activity {
                 @Override public void onSuccess(Location location) {
                     qiblaBearing = calculateQiblaBearing(location.getLatitude(), location.getLongitude());
                     qiblaBearingReady = true;
-                    compassDial.setRelativeBearing((float) qiblaBearing);
+                    compassDial.setOrientation((float) trueHeading,
+                            (float) normalizeDegrees(qiblaBearing - trueHeading));
                     qiblaStatus.setText(String.format(Locale.getDefault(),
                             "Qibla is %.1f° clockwise from true north. Hold the phone flat; rotate until the arrow points up.",
                             qiblaBearing));
@@ -1298,11 +1299,13 @@ public class MainActivity extends Activity {
     private final class CompassDial extends View {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private float relativeBearing = 0f;
+        private float orientationHeading = 0f;
 
         CompassDial(Context context) { super(context); setLayerType(View.LAYER_TYPE_SOFTWARE, null); }
 
-        void setRelativeBearing(float value) {
-            relativeBearing = value;
+        void setOrientation(float heading, float bearing) {
+            orientationHeading = heading;
+            relativeBearing = bearing;
             invalidate();
         }
 
@@ -1319,7 +1322,7 @@ public class MainActivity extends Activity {
             paint.setColor(Color.rgb(184, 205, 193));
             for (int i = 0; i < 36; i++) {
                 canvas.save();
-                canvas.rotate(i * 10f, cx, cy);
+                canvas.rotate(i * 10f - orientationHeading, cx, cy);
                 float inner = radius - (i % 9 == 0 ? dp(16) : dp(8));
                 canvas.drawLine(cx, cy - radius, cx, cy - inner, paint);
                 canvas.restore();
@@ -1329,10 +1332,11 @@ public class MainActivity extends Activity {
             paint.setTextSize(sp(14));
             paint.setTypeface(Typeface.DEFAULT_BOLD);
             paint.setColor(green);
-            canvas.drawText("N", cx, cy - radius + dp(30), paint);
-            canvas.drawText("E", cx + radius - dp(24), cy + dp(5), paint);
-            canvas.drawText("S", cx, cy + radius - dp(12), paint);
-            canvas.drawText("W", cx - radius + dp(24), cy + dp(5), paint);
+            float labelRadius = radius - dp(20);
+            drawCardinal(canvas, "N", 0f, cx, cy, labelRadius, paint);
+            drawCardinal(canvas, "E", 90f, cx, cy, labelRadius, paint);
+            drawCardinal(canvas, "S", 180f, cx, cy, labelRadius, paint);
+            drawCardinal(canvas, "W", 270f, cx, cy, labelRadius, paint);
 
             canvas.save();
             canvas.rotate(relativeBearing, cx, cy);
@@ -1353,6 +1357,14 @@ public class MainActivity extends Activity {
             paint.setTypeface(Typeface.DEFAULT);
             paint.setColor(muted);
             canvas.drawText("QIBLA", cx, cy + radius + dp(24), paint);
+        }
+
+        private void drawCardinal(Canvas canvas, String label, float bearing,
+                                  float cx, float cy, float radius, Paint labelPaint) {
+            double angle = Math.toRadians(bearing - orientationHeading);
+            float x = cx + radius * (float) Math.sin(angle);
+            float y = cy - radius * (float) Math.cos(angle);
+            canvas.drawText(label, x, y + dp(5), labelPaint);
         }
 
         private float sp(float value) {
