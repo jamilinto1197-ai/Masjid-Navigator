@@ -1,4 +1,4 @@
-name: Build MasjidPH Android Debug APK
+name: Android compile check (APK distribution paused)
 
 on:
   workflow_dispatch:
@@ -10,18 +10,18 @@ on:
       - '.github/workflows/android-debug.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-debug-apk:
-    name: Build installable debug APK
+  compile-only:
+    name: Compile smoke test (no APK published)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@v4
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -29,31 +29,16 @@ jobs:
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-      - name: Set up Gradle 8.7
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Build debug APK
-        run: gradle --no-daemon -p android :app:assembleDebug
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: MasjidPH-Navigator-debug-APK
-          path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-          retention-days: 14
-      - name: Publish APK into repository
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compile debug APK locally only
+        run: gradle --no-daemon -p android :app:clean :app:assembleDebug
+      - name: Verify package identity and compute local hash
         run: |
-          mkdir -p downloads
-          cp android/app/build/outputs/apk/debug/*.apk downloads/MasjidPH-Navigator-debug.apk
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add downloads/MasjidPH-Navigator-debug.apk
-          if git diff --cached --quiet; then
-            echo "APK is unchanged; nothing to commit."
-          else
-            git commit -m "Publish latest Android debug APK"
-            git push origin HEAD:${GITHUB_REF_NAME}
-          fi
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          "$AAPT" dump badging "$APK" | grep -F "package: name='com.masjidph.navigator'"
+          sha256sum "$APK"
+          echo "The APK was compiled for diagnostics only. It is not uploaded or published because security review is still open."
