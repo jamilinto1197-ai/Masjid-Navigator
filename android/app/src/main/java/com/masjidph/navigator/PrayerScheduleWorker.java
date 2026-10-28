@@ -130,9 +130,6 @@ public final class PrayerScheduleWorker extends Worker {
                 throw new java.io.IOException("Prayer service returned an invalid response");
             }
             JSONObject timings = json.getJSONObject("data").getJSONObject("timings");
-            SimpleDateFormat dateTimeFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm", Locale.US);
-            dateTimeFormat.setLenient(false);
-            dateTimeFormat.setTimeZone(TimeZone.getTimeZone(ZONE));
             long now = System.currentTimeMillis();
 
             for (String prayer : PRAYERS) {
@@ -140,12 +137,15 @@ public final class PrayerScheduleWorker extends Worker {
                 int space = raw.indexOf(' ');
                 String time = space > 0 ? raw.substring(0, space) : raw;
                 if (!time.matches("^\\d{2}:\\d{2}$")) {
+                    // Explicitly cancel this prayer's previous alarm when an API
+                    // response is malformed; do not leave a stale reminder behind.
+                    PrayerReminderReceiver.schedule(context, prayer, 0L);
                     throw new ParseException("Invalid time returned for " + prayer, 0);
                 }
-                Date fireAt = dateTimeFormat.parse(date + " " + time);
-                if (fireAt != null && fireAt.getTime() > now) {
-                    PrayerReminderReceiver.schedule(context, prayer, fireAt.getTime());
-                }
+                long fireAt = PrayerScheduleTimes.parsePrayerTimeMillis(date, time, ZONE);
+                // schedule() replaces future alarms and cancels times that have
+                // passed, including after the saved location or device clock changes.
+                PrayerReminderReceiver.schedule(context, prayer, fireAt);
             }
         } finally {
             if (connection != null) connection.disconnect();
