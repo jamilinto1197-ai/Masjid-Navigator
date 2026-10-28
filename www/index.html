@@ -6,15 +6,16 @@
 <link rel="manifest" href="manifest.json">
 <title>MasjidPH Navigator</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" referrerpolicy="no-referrer">
 <style>
 :root{color-scheme:light;--green:#064e3b;--mint:#d1fae5;--ink:#15251f;--muted:#60736b;--paper:#f4f8f5;--line:#dce8e0}
 *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}header{background:linear-gradient(140deg,#064e3b,#0f766e);color:white;padding:26px 18px 30px;border-radius:0 0 26px 26px}header .tag{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8}h1{margin:.3rem 0;font-size:1.8rem}header p{margin:0;opacity:.9}.wrap{max-width:760px;margin:auto;padding:16px}.card{background:white;border:1px solid var(--line);border-radius:18px;padding:17px;margin:0 0 14px;box-shadow:0 4px 18px #153c2b0a}.card h2{font-size:1.1rem;margin:0 0 8px}.row{display:flex;gap:8px;flex-wrap:wrap}button,input,select{font:inherit;border-radius:11px;padding:11px 13px;border:1px solid var(--line)}button{background:var(--green);color:white;border:0;font-weight:650;cursor:pointer}button.secondary{background:var(--mint);color:var(--green)}input{background:white;min-width:0;flex:1;width:100%}.hint,.meta{font-size:.88rem;color:var(--muted)}.result{padding:12px 0;border-top:1px solid var(--line)}.result:first-child{border-top:0}.result strong{display:block}.badge{display:inline-block;background:var(--mint);color:var(--green);border-radius:99px;padding:2px 8px;font-size:.78rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile{background:#f1f8f3;border-radius:12px;padding:10px}.tile b{display:block;color:var(--green);font-size:1.1rem}#map{height:340px;border-radius:14px;border:1px solid var(--line);z-index:1}.map-actions{margin:10px 0}.big{font-size:2.5rem;font-weight:750;color:var(--green);line-height:1.2}.auth-note{font-size:.88rem;color:var(--muted)}.auth-form{display:grid;gap:10px}.auth-form input{width:100%}.auth-actions{display:flex;gap:8px;flex-wrap:wrap}.auth-actions button{flex:1;min-width:120px}.auth-user{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#f1f8f3;padding:12px;border-radius:12px}.details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.detail-item{background:#f1f8f3;border-radius:12px;padding:10px}.detail-item b{display:block;color:var(--green)}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.settings-grid label{display:block;font-size:.88rem;color:var(--muted)}.settings-grid input,.settings-grid select{width:100%;margin-top:4px}.checkrow{display:flex;align-items:center;gap:9px;margin:8px 0}.checkrow input{width:auto;flex:0}.alarm-status{padding:10px;border-radius:12px;background:#f1f8f3;color:var(--green);font-size:.9rem}#appContent[hidden]{display:none}.auth-shell{max-width:560px;margin:22px auto;padding:16px}.auth-hero{background:linear-gradient(140deg,#064e3b,#0f766e);color:#fff;border-radius:20px;padding:22px;margin-bottom:14px}.auth-hero h2{font-size:1.45rem;margin:0 0 6px}.auth-hero p{margin:0;opacity:.92}.auth-form label{display:block;font-weight:600}.auth-form input{display:block;margin-top:5px}.auth-actions button{min-height:48px}.auth-note{overflow-wrap:anywhere}.app-layout{padding:12px 14px calc(96px + env(safe-area-inset-bottom));max-width:760px}.screen-title{padding:14px 4px 18px}.screen-title span{font-size:.72rem;font-weight:800;letter-spacing:.14em;color:#0f766e}.screen-title h2{font-size:1.55rem;margin:4px 0}.screen-title p{margin:0;color:var(--muted)}.app-view[hidden],#bottomNav[hidden]{display:none}.bottom-nav{position:fixed;z-index:9999;left:0;right:0;bottom:0;display:flex;justify-content:space-around;gap:2px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid var(--line);box-shadow:0 -6px 24px #153c2b12;backdrop-filter:blur(16px)}.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;background:transparent;color:#687a72;font-size:.72rem;font-weight:700;border-radius:12px;min-height:52px}.nav-icon{font-size:1.35rem;line-height:1.15}.nav-item.active{background:#e2f7eb;color:var(--green)}.community-hero{background:linear-gradient(140deg,#064e3b,#0f766e);color:white}.community-hero p{color:#e3f5ee}.community-icon{font-size:2rem}.profile-avatar{width:64px;height:64px;display:grid;place-items:center;border-radius:50%;background:var(--mint);color:var(--green);font-size:1.7rem;font-weight:800;margin:10px 0}body:has(#appContent:not([hidden])) header{padding:14px 18px 17px;border-radius:0 0 20px 20px}body:has(#appContent:not([hidden])) header h1{font-size:1.35rem}body:has(#appContent:not([hidden])) header p{font-size:.88rem}@media(min-width:760px){.bottom-nav{left:50%;right:auto;transform:translateX(-50%);width:min(760px,100%);border-radius:18px 18px 0 0}}.footer{text-align:center;color:var(--muted);font-size:.8rem;padding:8px 12px 28px}@media(min-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#authForm[hidden],#authOtherActions[hidden],#authVerificationActions[hidden]{display:none!important}
 </style>
 </head>
 <body>
 <header><div class="tag">Philippines · Muslim community</div><h1>🕌 MasjidPH Navigator</h1><p>Find a masjid, orient your Qibla, and plan your salah.</p></header>
-<section class="auth-shell" id="accountCard"><div class="auth-hero"><div class="tag">Your local Muslim community</div><h2>Welcome to MasjidPH Navigator</h2><p>Find nearby masjids, check Qibla, and connect with your community. Create an account to get started.</p></div><div class="card"><h2>Sign in to MasjidPH Navigator</h2><p class="auth-note">Sign in or create an account to access the navigator and, soon, mosque-specific chats and community profiles.</p><div id="authSignedOut"><form id="authForm" class="auth-form"><label>Email address<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required></label><div class="auth-actions"><button type="submit" id="authSignIn">Sign in</button><button type="button" class="secondary" id="authCreate">Create account</button></div></form><div class="row" style="margin-top:8px"><button type="button" class="secondary" id="authGoogle">Continue with Google</button><button type="button" class="secondary" id="authReset">Reset password</button></div></div><div id="authSignedIn" hidden><div class="auth-user"><span>Signed in as <strong id="authUserEmail"></strong></span><button type="button" id="authSignOut">Sign out</button></div></div><p id="authStatus" class="auth-note" aria-live="polite">Please sign in or create an account to continue.</p></div></section>
+<section class="auth-shell" id="accountCard"><div class="auth-hero"><div class="tag">Your local Muslim community</div><h2>Welcome to MasjidPH Navigator</h2><p>Find nearby masjids, check Qibla, and connect with your community. Create an account to get started.</p></div><div class="card"><h2>Sign in to MasjidPH Navigator</h2><p class="auth-note">Sign in or create an account to access the navigator and, soon, mosque-specific chats and community profiles.</p><div id="authSignedOut"><form id="authForm" class="auth-form"><label>Email address<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required></label><div class="auth-actions"><button type="submit" id="authSignIn">Sign in</button><button type="button" class="secondary" id="authCreate">Create account</button></div></form><div class="row" style="margin-top:8px" id="authOtherActions"><button type="button" class="secondary" id="authGoogle">Continue with Google</button><button type="button" class="secondary" id="authReset">Reset password</button></div></div><div id="authVerificationActions" class="auth-actions" style="margin-top:8px" hidden><button type="button" id="authResendVerification">Resend verification email</button><button type="button" class="secondary" id="authCheckVerification">I've verified my email</button><button type="button" class="secondary" id="authSwitchAccount">Sign out and use another account</button></div><div id="authSignedIn" hidden><div class="auth-user"><span>Signed in as <strong id="authUserEmail"></strong></span><button type="button" id="authSignOut">Sign out</button></div></div><p id="authStatus" class="auth-note" aria-live="polite">Please sign in or create an account to continue.</p></div></section>
 <main class="wrap app-layout" id="appContent" hidden>
 <div class="screen-title" id="screenTitle"><span>HOME</span><h2>Assalamu Alaikum 👋</h2><p>Your masjid and salah companion.</p></div>
 <div class="app-view" data-view="home"><section class="card"><h2>Prayer-time guide</h2><p class="hint">Fetch daily prayer times from an online prayer-time service using your coordinates. For official local times, follow your masjid or recognized Philippine Islamic authority.</p><div class="row"><button id="prayerBtn">Estimate for my location</button></div><p id="prayerStatus" class="hint" aria-live="polite">Location is needed for local estimates.</p><div id="prayers" class="grid"></div></section>
@@ -40,7 +41,7 @@
 <button class="nav-item" data-tab="profile" aria-label="Profile"><span class="nav-icon">♙</span><span>Profile</span></button>
 </nav>
 <div class="footer">MasjidPH Navigator · Verify local mosque details and prayer timetables.</div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous" referrerpolicy="no-referrer">
 </script>
 <script>
 'use strict';
@@ -78,20 +79,46 @@ $('showMap').addEventListener('click',()=>{initMap();$('map').scrollIntoView({be
 $('mapLocate').addEventListener('click',async()=>{try{current=await getLocation();initMap();map.setView([current.lat,current.lon],14);updateMapMarkers();$('locationStatus').textContent='Location ready. Blue dot shows your current position.';render()}catch(e){$('locationStatus').textContent='Could not get location: '+e.message}});
 $('locate').addEventListener('click',async()=>{const s=$('locationStatus');s.textContent='Requesting device location…';try{current=await getLocation();s.textContent='Location ready. Showing closest starter listings first.';render()}catch(e){s.textContent='Could not get location: '+e.message}});
 $('qiblaBtn').addEventListener('click',async()=>{const el=$('qiblaResult');el.textContent='Getting location…';try{const p=await getLocation();current=p;render();el.innerHTML='<div class="big">'+bearing(p.lat,p.lon).toFixed(1)+'°</div><b>clockwise from true north</b><p class="hint">Coordinates: '+p.lat.toFixed(4)+', '+p.lon.toFixed(4)+'. A phone compass may differ due to magnetic variation and sensor calibration.</p>'}catch(e){el.textContent='Could not calculate: '+e.message}});
-function showMosqueDetails(m){if(!m)return;const el=$('mosqueDetails');const km=current?distance(current.lat,current.lon,m.lat,m.lon).toFixed(1)+' km from you':'Enable location to calculate distance';el.hidden=false;el.innerHTML='<h2>'+escapeHtml(m.name)+'</h2><p>'+escapeHtml(m.city)+', '+escapeHtml(m.province)+'</p><div class="details-grid"><div class="detail-item"><span class="hint">Coordinates</span><b>'+m.lat.toFixed(5)+', '+m.lon.toFixed(5)+'</b></div><div class="detail-item"><span class="hint">Distance</span><b>'+km+'</b></div><div class="detail-item"><span class="hint">Facilities</span><b>Not verified</b></div><div class="detail-item"><span class="hint">Prayer timetable</span><b>Confirm with masjid</b></div></div><p class="hint">This directory entry is not yet fully verified. Exact street address, imam/contact details, Jumu’ah schedule, women’s prayer area, wudu facilities, accessibility and community services have not been confirmed. Please verify locally before relying on this listing.</p><div class="row"><button type="button" onclick="navigateTo({lat:'+m.lat+',lon:'+m.lon+'})">Navigate</button><button type="button" class="secondary" onclick="window.open(\'https://www.openstreetmap.org/?mlat='+m.lat+'&mlon='+m.lon+'#map=17/'+m.lat+'/'+m.lon+'\',\'_blank\')">View map</button><button type="button" class="secondary" onclick="document.getElementById(\'mosqueDetails\').hidden=true">Close details</button></div>';el.scrollIntoView({behavior:'smooth',block:'center'})}
+function showMosqueDetails(m){if(!m)return;const el=$('mosqueDetails');const km=current?distance(current.lat,current.lon,m.lat,m.lon).toFixed(1)+' km from you':'Enable location to calculate distance';el.hidden=false;el.innerHTML='<h2>'+escapeHtml(m.name)+'</h2><p>'+escapeHtml(m.city)+', '+escapeHtml(m.province)+'</p><div class="details-grid"><div class="detail-item"><span class="hint">Coordinates</span><b>'+m.lat.toFixed(5)+', '+m.lon.toFixed(5)+'</b></div><div class="detail-item"><span class="hint">Distance</span><b>'+km+'</b></div><div class="detail-item"><span class="hint">Facilities</span><b>Not verified</b></div><div class="detail-item"><span class="hint">Prayer timetable</span><b>Confirm with masjid</b></div></div><p class="hint">This directory entry is not yet fully verified. Exact street address, imam/contact details, Jumu’ah schedule, women’s prayer area, wudu facilities, accessibility and community services have not been confirmed. Please verify locally before relying on this listing.</p><div class="row"><button type="button" onclick="navigateTo({lat:'+m.lat+',lon:'+m.lon+'})">Navigate</button><button type="button" class="secondary" onclick="window.open(\'https://www.openstreetmap.org/?mlat='+m.lat+'&mlon='+m.lon+'#map=17/'+m.lat+'/'+m.lon+'\',\'_blank\',\'noopener,noreferrer\')">View map</button><button type="button" class="secondary" onclick="document.getElementById(\'mosqueDetails\').hidden=true">Close details</button></div>';el.scrollIntoView({behavior:'smooth',block:'center'})}
 const alarmKeys=['Fajr','Dhuhr','Asr','Maghrib','Isha'];
 function loadAlarmSettings(){let cfg={};try{cfg=JSON.parse(localStorage.getItem('masjidphAlarmSettings')||'{}')}catch(e){};$('prayerAlarmOptions').innerHTML=alarmKeys.map(n=>'<div class="checkrow"><input type="checkbox" id="alarm_'+n+'" '+(cfg.prayers?.[n]!==false?'checked':'')+'><label for="alarm_'+n+'">'+n+' alarm</label></div>').join('');$('alarmTune').value=cfg.tune||'adhan';$('prayerOffset').value=String(cfg.offset??0);$('suhoorEnabled').checked=!!cfg.suhoor;$('iftarEnabled').checked=!!cfg.iftar;$('ramadanOnly').checked=cfg.ramadanOnly!==false;$('suhoorOffset').value=String(cfg.suhoorOffset||45)}
 function saveAlarmSettings(){const cfg={prayers:{},tune:$('alarmTune').value,offset:Number($('prayerOffset').value),suhoor:$('suhoorEnabled').checked,iftar:$('iftarEnabled').checked,ramadanOnly:$('ramadanOnly').checked,suhoorOffset:Number($('suhoorOffset').value)};alarmKeys.forEach(n=>cfg.prayers[n]=$('alarm_'+n).checked);localStorage.setItem('masjidphAlarmSettings',JSON.stringify(cfg));window.dispatchEvent(new CustomEvent('masjidph-settings-saved',{detail:cfg}));$('alarmStatus').textContent='Settings saved on this device. Keep the app open for web-based reminders; Android may pause timers in the background.';scheduleWebAlarms()}
-function isRamadan(){try{return new Intl.DateTimeFormat('en-u-ca-islamic', {month:'numeric'}).format(new Date())==='9'}catch(e){return false}}
-function parsePrayerDateTime(time,dayOffset=0){if(!time)return null;const m=String(time).match(/(\d{1,2}):(\d{2})/);if(!m)return null;const d=new Date();d.setDate(d.getDate()+dayOffset);d.setHours(Number(m[1]),Number(m[2]),0,0);return d}
+const PRAYER_TIME_ZONE = 'Asia/Manila';
+function manilaDateParts(date=new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: PRAYER_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(date);
+  const values = {};
+  for (const part of parts) if (part.type !== 'literal') values[part.type] = Number(part.value);
+  return values;
+}
+function manilaDateKey(date=new Date()) {
+  const p = manilaDateParts(date);
+  return p.year + '-' + String(p.month).padStart(2,'0') + '-' + String(p.day).padStart(2,'0');
+}
+function prayerApiDate(date=new Date()) {
+  const p = manilaDateParts(date);
+  return String(p.day).padStart(2,'0') + '-' + String(p.month).padStart(2,'0') + '-' + p.year;
+}
+function isRamadan(){try{return new Intl.DateTimeFormat('en-u-ca-islamic', {month:'numeric',timeZone:PRAYER_TIME_ZONE}).format(new Date())==='9'}catch(e){return false}}
+function parsePrayerDateTime(time,dayOffset=0){
+  const m=String(time||'').match(/^(\d{1,2}):(\d{2})\b/);
+  if(!m)return null;
+  const hour=Number(m[1]), minute=Number(m[2]);
+  if(hour<0||hour>23||minute<0||minute>59)return null;
+  const p=manilaDateParts(new Date());
+  const day=new Date(Date.UTC(p.year,p.month-1,p.day+dayOffset));
+  // Asia/Manila is UTC+08:00 year-round; convert the local wall time to an absolute instant.
+  return new Date(Date.UTC(day.getUTCFullYear(),day.getUTCMonth(),day.getUTCDate(),hour-8,minute,0,0));
+}
 function playAlarm(){const cfg=JSON.parse(localStorage.getItem('masjidphAlarmSettings')||'{}');try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const sequence=cfg.tune==='beep'?[880]:cfg.tune==='soft'?[523,659,784]:[659,784,659,523,659];let at=ctx.currentTime;sequence.forEach(freq=>{const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.value=freq;gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(.13,at+.03);gain.gain.exponentialRampToValueAtTime(.0001,at+.35);osc.connect(gain);gain.connect(ctx.destination);osc.start(at);osc.stop(at+.38);at+=.42});setTimeout(()=>ctx.close(),3000)}catch(e){}}
 function sendReminder(title,body){playAlarm();if('Notification'in window&&Notification.permission==='granted')new Notification(title,{body,icon:'favicon.svg'});$('alarmStatus').textContent=title+' — '+body}
-function scheduleWebAlarms(){if(alarmTimer)clearInterval(alarmTimer);if(!lastPrayerResult)return;const cfg=JSON.parse(localStorage.getItem('masjidphAlarmSettings')||'{}');const t=lastPrayerResult.timings;const now=new Date();const key='masjidphFired_'+now.toDateString();let fired={};try{fired=JSON.parse(sessionStorage.getItem(key)||'{}')}catch(e){};const ramadan=isRamadan();const events=[];alarmKeys.forEach(n=>{if(cfg.prayers?.[n]===false)return;const dt=parsePrayerDateTime(t[n]);if(dt){dt.setMinutes(dt.getMinutes()+Number(cfg.offset||0));events.push({id:n,dt,title:n+' prayer reminder',body:'It is time for '+n+'. Please follow your local masjid timetable.'})}});if(cfg.suhoor&&(!cfg.ramadanOnly||ramadan)){const dt=parsePrayerDateTime(t.Fajr);if(dt){dt.setMinutes(dt.getMinutes()-Number(cfg.suhoorOffset||45));events.push({id:'suhoor',dt,title:'Suhoor reminder',body:'Prepare to finish suhoor before Fajr. Confirm your local Ramadan timetable.'})}}if(cfg.iftar&&(!cfg.ramadanOnly||ramadan)){const dt=parsePrayerDateTime(t.Maghrib);if(dt)events.push({id:'iftar',dt,title:'Iftar time',body:'Maghrib is approaching/has arrived. Break your fast according to your local timetable.'})}events.forEach(e=>{if(e.dt<=now&&now-e.dt<60000&&!fired[e.id]){fired[e.id]=true;sendReminder(e.title,e.body)}});sessionStorage.setItem(key,JSON.stringify(fired));alarmTimer=setInterval(()=>{const n=new Date();events.forEach(e=>{if(e.dt<=n&&n-e.dt<60000&&!fired[e.id]){fired[e.id]=true;sessionStorage.setItem(key,JSON.stringify(fired));sendReminder(e.title,e.body)}})},15000);const suhoor=parsePrayerDateTime(t.Fajr);$('ramadanTimes').textContent='Today’s calculated preview · Fajr '+fmtTime(t.Fajr)+' · Maghrib '+fmtTime(t.Maghrib)+'. Suhoor reminder '+(suhoor?new Date(suhoor.getTime()-Number(cfg.suhoorOffset||45)*60000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—')+' · Iftar '+fmtTime(t.Maghrib)+'. These are calculated prayer times, not an official local Ramadan timetable.'}
+function scheduleWebAlarms(){if(alarmTimer)clearInterval(alarmTimer);if(!lastPrayerResult)return;const cfg=JSON.parse(localStorage.getItem('masjidphAlarmSettings')||'{}');const t=lastPrayerResult.timings;const now=new Date();const key='masjidphFired_'+manilaDateKey(now);let fired={};try{fired=JSON.parse(sessionStorage.getItem(key)||'{}')}catch(e){};const ramadan=isRamadan();const events=[];alarmKeys.forEach(n=>{if(cfg.prayers?.[n]===false)return;const dt=parsePrayerDateTime(t[n]);if(dt){dt.setMinutes(dt.getMinutes()+Number(cfg.offset||0));events.push({id:n,dt,title:n+' prayer reminder',body:'It is time for '+n+'. Please follow your local masjid timetable.'})}});if(cfg.suhoor&&(!cfg.ramadanOnly||ramadan)){const dt=parsePrayerDateTime(t.Fajr);if(dt){dt.setMinutes(dt.getMinutes()-Number(cfg.suhoorOffset||45));events.push({id:'suhoor',dt,title:'Suhoor reminder',body:'Prepare to finish suhoor before Fajr. Confirm your local Ramadan timetable.'})}}if(cfg.iftar&&(!cfg.ramadanOnly||ramadan)){const dt=parsePrayerDateTime(t.Maghrib);if(dt)events.push({id:'iftar',dt,title:'Iftar time',body:'Maghrib is approaching/has arrived. Break your fast according to your local timetable.'})}events.forEach(e=>{if(e.dt<=now&&now-e.dt<60000&&!fired[e.id]){fired[e.id]=true;sendReminder(e.title,e.body)}});sessionStorage.setItem(key,JSON.stringify(fired));alarmTimer=setInterval(()=>{const n=new Date();events.forEach(e=>{if(e.dt<=n&&n-e.dt<60000&&!fired[e.id]){fired[e.id]=true;sessionStorage.setItem(key,JSON.stringify(fired));sendReminder(e.title,e.body)}})},15000);const suhoor=parsePrayerDateTime(t.Fajr);$('ramadanTimes').textContent='Today’s calculated preview · Fajr '+fmtTime(t.Fajr)+' · Maghrib '+fmtTime(t.Maghrib)+'. Suhoor reminder '+(suhoor?new Intl.DateTimeFormat('en-PH',{timeZone:PRAYER_TIME_ZONE,hour:'2-digit',minute:'2-digit',hour12:true}).format(new Date(suhoor.getTime()-Number(cfg.suhoorOffset||45)*60000)):'—')+' · Iftar '+fmtTime(t.Maghrib)+'. These are calculated prayer times, not an official local Ramadan timetable.'}
 $('enableNotifications').addEventListener('click',async()=>{if(!('Notification'in window)){$('alarmPermission').textContent='Notifications are not supported here. In-app sound may still work while this page is active.';return}try{const p=await Notification.requestPermission();$('alarmPermission').textContent=p==='granted'?'Notifications enabled. Keep this app open for web reminders.':'Notifications were not allowed; sound reminders may still work while active.'}catch(e){$('alarmPermission').textContent='Could not request notification permission: '+e.message}});
 $('saveAlarmSettings').addEventListener('click',saveAlarmSettings);
 $('refreshAlarmTimes').addEventListener('click',async()=>{if(!current){try{current=await getLocation()}catch(e){$('alarmStatus').textContent='Please allow location first, or use the Prayer-time guide button.';return}}$('alarmStatus').textContent='Refreshing times…';try{lastPrayerResult=await fetchPrayerTimes(current);scheduleWebAlarms();$('alarmStatus').textContent='Times refreshed. Web reminders are active while this page remains open. For exact Ramadan times, confirm with your local masjid.'}catch(e){$('alarmStatus').textContent='Could not refresh prayer times: '+e.message}});
 function fmtTime(value){const m=String(value||'').match(/^(\\d{1,2}:\\d{2})/);return m?m[1]:'—'}
-async function fetchPrayerTimes(p){const now=new Date();const date=String(now.getDate()).padStart(2,'0')+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+now.getFullYear();const url='https://api.aladhan.com/v1/timings/'+date+'?latitude='+encodeURIComponent(p.lat)+'&longitude='+encodeURIComponent(p.lon)+'&method=3&school=0&timezonestring=Asia%2FManila';const response=await fetch(url,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error('Prayer-time service returned HTTP '+response.status);const json=await response.json();if(json.code!==200||!json.data||!json.data.timings)throw new Error('Prayer-time service returned an invalid response');return {timings:json.data.timings,method:json.data.meta&&json.data.meta.method&&json.data.meta.method.name||'Muslim World League',date:json.data.date&&json.data.date.readable||date}}
+async function fetchPrayerTimes(p){const date=prayerApiDate(new Date());const url='https://api.aladhan.com/v1/timings/'+date+'?latitude='+encodeURIComponent(p.lat)+'&longitude='+encodeURIComponent(p.lon)+'&method=3&school=0&timezonestring=Asia%2FManila';const response=await fetch(url,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error('Prayer-time service returned HTTP '+response.status);const json=await response.json();if(json.code!==200||!json.data||!json.data.timings)throw new Error('Prayer-time service returned an invalid response');return {timings:json.data.timings,method:json.data.meta&&json.data.meta.method&&json.data.meta.method.name||'Muslim World League',date:json.data.date&&json.data.date.readable||date}}
 $('prayerBtn').addEventListener('click',async()=>{const status=$('prayerStatus');status.textContent='Fetching today’s prayer times for your location…';try{const p=await getLocation();current=p;render();const result=await fetchPrayerTimes(p);lastPrayerResult=result;const t=result.timings;const names=[['Fajr',t.Fajr],['Sunrise',t.Sunrise],['Dhuhr',t.Dhuhr],['Asr',t.Asr],['Maghrib',t.Maghrib],['Isha',t.Isha]];$('prayers').innerHTML=names.map(([n,v])=>'<div class="tile"><span>'+n+'</span><b>'+fmtTime(v)+'</b></div>').join('');status.textContent='Prayer times for '+result.date+' · Source: AlAdhan API · Calculation: '+result.method+' (Shafi school). This is calculated data, not a verified official Philippine/local masjid timetable. Please confirm with your local imam.';scheduleWebAlarms()}catch(e){status.textContent='Could not load online prayer times: '+e.message+'. No estimated times are shown; check your local masjid timetable.';$('prayers').innerHTML=''} });
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 loadAlarmSettings();render();
@@ -100,7 +127,7 @@ initMap();
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, reload, getIdToken, signOut, GoogleAuthProvider, signInWithPopup } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
 // Replace these values with the Web App config from your Firebase project.
 const firebaseConfig = {
@@ -189,29 +216,122 @@ function requireConfigured() {
   statusEl.textContent='Sign-in UI is ready, but authentication is not connected yet. The app owner must add Firebase project configuration and enable Email/Password sign-in.';
   return false;
 }
+async function updateAuthUi(user) {
+  signedInUser = user || null;
+  const passwordProvider = !!user && (user.providerData || []).some(p => p.providerId === 'password');
+  const needsVerification = !!user && passwordProvider && !user.emailVerified;
+  const appUser = user && !needsVerification;
+  const authForm = document.getElementById('authForm');
+  const otherAuthActions = document.getElementById('authOtherActions');
+  const verificationActions = document.getElementById('authVerificationActions');
+
+  signedOutEl.hidden = !!appUser;
+  signedInEl.hidden = !appUser;
+  if (authForm) authForm.hidden = needsVerification;
+  if (otherAuthActions) otherAuthActions.hidden = needsVerification;
+  if (verificationActions) verificationActions.hidden = !needsVerification;
+  document.getElementById('accountCard').hidden = false;
+  document.getElementById('appContent').hidden = !appUser;
+  document.getElementById('bottomNav').hidden = !appUser;
+  document.getElementById('authUserEmail').textContent = user?.email || '';
+
+  if (needsVerification) {
+    statusEl.textContent = 'Your email is not verified. Open the verification link from your inbox before accessing profile and community data.';
+    return;
+  }
+  if (appUser) {
+    document.getElementById('profileEmail').textContent = user.email || '';
+    loadProfile(user);
+    statusEl.textContent = 'Signed in. Loading your settings and mosque directory…';
+    await syncUserSettings(user);
+  } else {
+    statusEl.textContent = 'You are signed out. Sign in or create an account to access the navigator.';
+  }
+  await loadMosquesFromFirestore();
+}
+
 if(configured) {
   try {
     const app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
-    onAuthStateChanged(auth, async user => {
-      signedInUser = user || null;
-      signedOutEl.hidden=!!user;
-      signedInEl.hidden=!user;
-      document.getElementById('accountCard').hidden=false;
-      document.getElementById('appContent').hidden=!user;
-      document.getElementById('bottomNav').hidden=!user;
-      if(user) { document.getElementById('profileEmail').textContent=user.email||''; loadProfile(user); }
-      document.getElementById('authUserEmail').textContent=user?.email||'';
-      if(user) {
-        statusEl.textContent='Signed in. Loading your settings and mosque directory…';
-        await syncUserSettings(user);
-      } else statusEl.textContent='You are signed out. All main features remain available.';
-      await loadMosquesFromFirestore();
+    onAuthStateChanged(auth, user => {
+      updateAuthUi(user).catch(error => {
+        statusEl.textContent = 'Could not refresh your account state: ' + authError(error);
+      });
     });
     loadMosquesFromFirestore();
   } catch(error) { statusEl.textContent='Could not initialize Firebase: '+authError(error); }
 }
+const VERIFICATION_RESEND_COOLDOWN_MS = 60_000;
+const VERIFICATION_RESEND_KEY = 'masjidphVerificationResendAt';
+
+function needsEmailVerification(user) {
+  return !!user && !user.emailVerified
+    && (user.providerData || []).some(provider => provider.providerId === 'password');
+}
+
+async function resendVerificationEmail() {
+  const user = auth?.currentUser;
+  if (!user || !needsEmailVerification(user)) {
+    statusEl.textContent = 'Sign in with your email and password before requesting verification.';
+    return;
+  }
+  let lastSentAt = 0;
+  try { lastSentAt = Number(localStorage.getItem(VERIFICATION_RESEND_KEY) || 0); } catch (_) {}
+  const remaining = VERIFICATION_RESEND_COOLDOWN_MS - (Date.now() - lastSentAt);
+  if (lastSentAt > 0 && remaining > 0) {
+    statusEl.textContent = 'Please wait ' + Math.max(1, Math.ceil(remaining / 1000))
+      + ' seconds before requesting another verification email.';
+    return;
+  }
+  try { localStorage.setItem(VERIFICATION_RESEND_KEY, String(Date.now())); } catch (_) {}
+  statusEl.textContent = 'Sending verification email…';
+  try {
+    await sendEmailVerification(user);
+    statusEl.textContent = 'Verification email sent. Open the link in your inbox, then return and tap “I’ve verified my email”.';
+  } catch (error) {
+    statusEl.textContent = 'Could not send the verification email: ' + authError(error);
+  }
+}
+
+async function checkEmailVerification() {
+  const user = auth?.currentUser;
+  if (!user) {
+    statusEl.textContent = 'Sign in again to check email verification.';
+    return;
+  }
+  statusEl.textContent = 'Checking your email verification…';
+  try {
+    await reload(user);
+    const refreshedUser = auth.currentUser;
+    if (!refreshedUser || refreshedUser.uid !== user.uid) {
+      statusEl.textContent = 'Your account changed while checking verification. Sign in again.';
+      return;
+    }
+    if (needsEmailVerification(refreshedUser)) {
+      statusEl.textContent = 'Your email still appears unverified. Open the verification link from your inbox, then try again.';
+      return;
+    }
+    await getIdToken(refreshedUser, true);
+    await updateAuthUi(refreshedUser);
+    statusEl.textContent = 'Email verified. Your account is ready.';
+  } catch (error) {
+    statusEl.textContent = 'Could not refresh your verification state: ' + authError(error);
+  }
+}
+
+document.getElementById('authResendVerification').addEventListener('click', () => {
+  resendVerificationEmail().catch(error => { statusEl.textContent = authError(error); });
+});
+document.getElementById('authCheckVerification').addEventListener('click', () => {
+  checkEmailVerification().catch(error => { statusEl.textContent = authError(error); });
+});
+document.getElementById('authSwitchAccount').addEventListener('click', async () => {
+  try { await signOut(auth); }
+  catch (error) { statusEl.textContent = 'Could not sign out: ' + authError(error); }
+});
+
 document.getElementById('authForm').addEventListener('submit',async event=>{
   event.preventDefault(); if(!requireConfigured()) return;
   statusEl.textContent='Signing in…';
@@ -222,8 +342,10 @@ document.getElementById('authCreate').addEventListener('click',async()=>{
   if(!requireConfigured()) return;
   if(!emailEl.value.trim()||!passwordEl.value){statusEl.textContent='Enter an email and password first.';return}
   statusEl.textContent='Creating account…';
-  try { await createUserWithEmailAndPassword(auth,emailEl.value.trim(),passwordEl.value); statusEl.textContent='Account created and signed in.'; }
-  catch(error) { statusEl.textContent=authError(error); }
+  try {
+    const credential = await createUserWithEmailAndPassword(auth,emailEl.value.trim(),passwordEl.value);
+    if (needsEmailVerification(credential.user)) await resendVerificationEmail();
+  } catch(error) { statusEl.textContent=authError(error); }
 });
 document.getElementById('authReset').addEventListener('click',async()=>{
   if(!requireConfigured()) return;
