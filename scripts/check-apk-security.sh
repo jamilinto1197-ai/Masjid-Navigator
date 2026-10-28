@@ -66,6 +66,22 @@ if grep -E "$DENIED_PERMISSION_PATTERN" "$PERMISSIONS"; then
   exit 1
 fi
 
+# WorkManager may request RECEIVE_BOOT_COMPLETED to restore the user's opt-in
+# daily reminder work. Accept it only when its non-exported reschedule receiver
+# is present in the merged manifest.
+if grep -q 'android.permission.RECEIVE_BOOT_COMPLETED' "$PERMISSIONS"; then
+  if ! grep -q 'androidx.work.impl.background.systemalarm.RescheduleReceiver' "$MANIFEST_TREE"; then
+    echo "::error::RECEIVE_BOOT_COMPLETED is present without WorkManager's expected reschedule receiver"
+    exit 1
+  fi
+fi
+
+# The app's reminder receiver is private to this package and must stay non-exported.
+if ! grep -A12 'com.masjidph.navigator.PrayerReminderReceiver' "$MANIFEST_TREE" | grep -qi 'android:exported.*false'; then
+  echo "::error::Prayer reminder receiver is missing or exported"
+  exit 1
+fi
+
 # Native migration must not accidentally package a legacy WebView/PWA bundle.
 # Reject both the old assets/www path and Capacitor's newer assets/public path.
 unzip -Z1 "$APK" > "$CONTENTS"
