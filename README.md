@@ -6,7 +6,7 @@ MasjidPH Navigator is being migrated into a native Android application for disco
 
 **APK distribution is paused.** A previous debug APK was flagged by Android Phone Manager and four VirusTotal engines. That APK was removed from the default branch. Do not install copies of it or bypass security alerts.
 
-The `security-hardening` branch has a security gate that runs MobSF source analysis, a Gradle dependency lock and OSV audit, Android unit tests, Android lint/build, compiled APK checks, and Firestore authorization tests. The APK inspection rejects both legacy `assets/www` and Capacitor `assets/public` bundles because the native activity does not use a WebView. Its workflow publishes security reports only, never an APK. A green compile alone is not a malware verdict.
+The `security-hardening` branch has a security gate that runs MobSF source analysis, a Gradle dependency lock and OSV audit, Android unit tests, Android lint/build, compiled APK checks, and Firestore authorization tests. The APK inspection rejects both legacy `assets/www` and Capacitor `assets/public` bundles because the native activity does not use a WebView. Its workflow publishes security reports only, never an APK. A green compile alone is not a malware verdict. The current workflow validates the report moderation rules and the reminder scheduling code, but a real Android device test is still required.
 
 ## Native feature status on this branch
 
@@ -16,7 +16,7 @@ The `security-hardening` branch has a security gate that runs MobSF source analy
 - **Qibla:** On-device bearing calculation to the Kaaba and a live compass dial when a compatible device sensor is available. The compass rose now rotates with corrected true heading; bearing math has automated unit tests.
 - **Profiles:** Member profile read/write with client-side length limits and Firestore ownership rules.
 - **Community:** Mosque-specific text chat, realtime reads, own-message deletion, reporting, and a custom-claim-gated moderation queue. Ordinary members cannot read reports; verified admins can dismiss reports or delete reported messages. Rooms are open to verified signed-in users; membership approval, server-side spam/rate controls, and abuse escalation remain future work.
-- **Not complete:** Native Google sign-in pending OAuth setup, production-grade exact prayer alarms (current alerts are best-effort), in-app map tiles, admin/moderation tooling, and physical-device / release testing.
+- **Not complete:** Native Google sign-in pending OAuth setup, exact prayer alarms (current alerts are best-effort), in-app map tiles, server-side spam/rate controls and membership approval workflows, and physical-device / release testing.
 
 Do not describe the unfinished items above as implemented. More security and functionality work remains before the app can be treated as ready for general use.
 
