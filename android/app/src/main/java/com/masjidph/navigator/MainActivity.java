@@ -98,6 +98,7 @@ public class MainActivity extends Activity {
     private String activeCommunityId = "";
     private final List<MosqueItem> communityMosques = new ArrayList<>();
     private FirebaseAuth auth;
+    private FirebaseAuth.AuthStateListener authStateListener;
     private FirebaseFirestore db;
     private String tab = "home";
     private boolean firebaseReady = false;
@@ -205,10 +206,11 @@ public class MainActivity extends Activity {
         initFirebase();
         showRoot();
         if (auth != null) {
-            auth.addAuthStateListener(a -> {
-                if (a.getCurrentUser() != null) showApp();
+            authStateListener = firebaseAuth -> {
+                if (firebaseAuth.getCurrentUser() != null) showApp();
                 else showLogin();
-            });
+            };
+            auth.addAuthStateListener(authStateListener);
         } else {
             showLogin();
         }
@@ -1014,18 +1016,11 @@ public class MainActivity extends Activity {
     }
 
     private double calculateQiblaBearing(double latitude, double longitude) {
-        double rad = Math.PI / 180.0;
-        double lat1 = latitude * rad;
-        double lat2 = 21.4225 * rad;
-        double deltaLon = (39.8262 - longitude) * rad;
-        double y = Math.sin(deltaLon) * Math.cos(lat2);
-        double x = Math.cos(lat1) * Math.sin(lat2)
-                - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
-        return normalizeDegrees(Math.toDegrees(Math.atan2(y, x)));
+        return PrayerMath.calculateQiblaBearing(latitude, longitude);
     }
 
     private double normalizeDegrees(double value) {
-        return (value % 360.0 + 360.0) % 360.0;
+        return PrayerMath.normalizeDegrees(value);
     }
 
     private void startCompass() {
@@ -1288,6 +1283,10 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy() {
         stopCompass();
         stopCommunityListener();
+        if (auth != null && authStateListener != null) {
+            auth.removeAuthStateListener(authStateListener);
+            authStateListener = null;
+        }
         if (locationManager != null && activeLocationListener != null) {
             try { locationManager.removeUpdates(activeLocationListener); } catch (SecurityException ignored) { }
         }
