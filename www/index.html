@@ -9,12 +9,13 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <style>
 :root{color-scheme:light;--green:#064e3b;--mint:#d1fae5;--ink:#15251f;--muted:#60736b;--paper:#f4f8f5;--line:#dce8e0}
-*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}header{background:linear-gradient(140deg,#064e3b,#0f766e);color:white;padding:26px 18px 30px;border-radius:0 0 26px 26px}header .tag{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8}h1{margin:.3rem 0;font-size:1.8rem}header p{margin:0;opacity:.9}.wrap{max-width:760px;margin:auto;padding:16px}.card{background:white;border:1px solid var(--line);border-radius:18px;padding:17px;margin:0 0 14px;box-shadow:0 4px 18px #153c2b0a}.card h2{font-size:1.1rem;margin:0 0 8px}.row{display:flex;gap:8px;flex-wrap:wrap}button,input,select{font:inherit;border-radius:11px;padding:11px 13px;border:1px solid var(--line)}button{background:var(--green);color:white;border:0;font-weight:650;cursor:pointer}button.secondary{background:var(--mint);color:var(--green)}input{background:white;min-width:0;flex:1;width:100%}.hint,.meta{font-size:.88rem;color:var(--muted)}.result{padding:12px 0;border-top:1px solid var(--line)}.result:first-child{border-top:0}.result strong{display:block}.badge{display:inline-block;background:var(--mint);color:var(--green);border-radius:99px;padding:2px 8px;font-size:.78rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile{background:#f1f8f3;border-radius:12px;padding:10px}.tile b{display:block;color:var(--green);font-size:1.1rem}#map{height:340px;border-radius:14px;border:1px solid var(--line);z-index:1}.map-actions{margin:10px 0}.big{font-size:2.5rem;font-weight:750;color:var(--green);line-height:1.2}.details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.detail-item{background:#f1f8f3;border-radius:12px;padding:10px}.detail-item b{display:block;color:var(--green)}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.settings-grid label{display:block;font-size:.88rem;color:var(--muted)}.settings-grid input,.settings-grid select{width:100%;margin-top:4px}.checkrow{display:flex;align-items:center;gap:9px;margin:8px 0}.checkrow input{width:auto;flex:0}.alarm-status{padding:10px;border-radius:12px;background:#f1f8f3;color:var(--green);font-size:.9rem}.footer{text-align:center;color:var(--muted);font-size:.8rem;padding:8px 12px 28px}@media(min-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}header{background:linear-gradient(140deg,#064e3b,#0f766e);color:white;padding:26px 18px 30px;border-radius:0 0 26px 26px}header .tag{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;opacity:.8}h1{margin:.3rem 0;font-size:1.8rem}header p{margin:0;opacity:.9}.wrap{max-width:760px;margin:auto;padding:16px}.card{background:white;border:1px solid var(--line);border-radius:18px;padding:17px;margin:0 0 14px;box-shadow:0 4px 18px #153c2b0a}.card h2{font-size:1.1rem;margin:0 0 8px}.row{display:flex;gap:8px;flex-wrap:wrap}button,input,select{font:inherit;border-radius:11px;padding:11px 13px;border:1px solid var(--line)}button{background:var(--green);color:white;border:0;font-weight:650;cursor:pointer}button.secondary{background:var(--mint);color:var(--green)}input{background:white;min-width:0;flex:1;width:100%}.hint,.meta{font-size:.88rem;color:var(--muted)}.result{padding:12px 0;border-top:1px solid var(--line)}.result:first-child{border-top:0}.result strong{display:block}.badge{display:inline-block;background:var(--mint);color:var(--green);border-radius:99px;padding:2px 8px;font-size:.78rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile{background:#f1f8f3;border-radius:12px;padding:10px}.tile b{display:block;color:var(--green);font-size:1.1rem}#map{height:340px;border-radius:14px;border:1px solid var(--line);z-index:1}.map-actions{margin:10px 0}.big{font-size:2.5rem;font-weight:750;color:var(--green);line-height:1.2}.auth-note{font-size:.88rem;color:var(--muted)}.auth-form{display:grid;gap:10px}.auth-form input{width:100%}.auth-actions{display:flex;gap:8px;flex-wrap:wrap}.auth-actions button{flex:1;min-width:120px}.auth-user{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#f1f8f3;padding:12px;border-radius:12px}.details-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.detail-item{background:#f1f8f3;border-radius:12px;padding:10px}.detail-item b{display:block;color:var(--green)}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.settings-grid label{display:block;font-size:.88rem;color:var(--muted)}.settings-grid input,.settings-grid select{width:100%;margin-top:4px}.checkrow{display:flex;align-items:center;gap:9px;margin:8px 0}.checkrow input{width:auto;flex:0}.alarm-status{padding:10px;border-radius:12px;background:#f1f8f3;color:var(--green);font-size:.9rem}.footer{text-align:center;color:var(--muted);font-size:.8rem;padding:8px 12px 28px}@media(min-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
 <body>
 <header><div class="tag">Philippines · Muslim community</div><h1>🕌 MasjidPH Navigator</h1><p>Find a masjid, orient your Qibla, and plan your salah.</p></header>
 <main class="wrap">
+<section class="card" id="accountCard"><h2>Sign in to MasjidPH Navigator</h2><p class="auth-note">Use your email to create an account or sign in. Account sign-in can later sync preferences across your devices once Firebase is configured.</p><div id="authSignedOut"><form id="authForm" class="auth-form"><label>Email address<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required></label><label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="At least 6 characters" required></label><div class="auth-actions"><button type="submit" id="authSignIn">Sign in</button><button type="button" class="secondary" id="authCreate">Create account</button></div></form><div class="row" style="margin-top:8px"><button type="button" class="secondary" id="authReset">Reset password</button></div></div><div id="authSignedIn" hidden><div class="auth-user"><span>Signed in as <strong id="authUserEmail"></strong></span><button type="button" id="authSignOut">Sign out</button></div></div><p id="authStatus" class="auth-note" aria-live="polite">Email sign-in requires the app owner to finish Firebase setup. Sign-in will not be simulated or stored as a fake local account.</p></section>
 <section class="card"><h2>Find a masjid</h2><p class="hint">Search the starter directory by name, city, or province. Use your location to sort by distance.</p><div class="row"><input id="search" aria-label="Search mosques" placeholder="Search mosque or location"><button id="locate">Use my location</button></div><p id="locationStatus" class="hint" aria-live="polite">Location is off until you tap the button.</p><div class="map-actions row"><button id="showMap" class="secondary" type="button">Show map</button><button id="mapLocate" type="button">Center on me</button></div><div id="map" aria-label="Map showing masjids"></div><p class="hint">Map needs an internet connection. Tap a marker, then Navigate for turn-by-turn directions in Google Maps.</p><div id="mosques"></div></section><section id="mosqueDetails" class="card" hidden aria-live="polite"></section>
 <section class="card"><h2>Qibla direction</h2><p class="hint">Direction from your coordinates to the Kaaba in Makkah. This is a calculated bearing, not a live compass reading.</p><div class="row"><button id="qiblaBtn">Calculate from my location</button></div><p id="qiblaResult" aria-live="polite">Tap the button and allow location access.</p></section>
 <section class="card"><h2>Prayer-time guide</h2><p class="hint">Fetch daily prayer times from an online prayer-time service using your coordinates. For official local times, follow your masjid or recognized Philippine Islamic authority.</p><div class="row"><button id="prayerBtn">Estimate for my location</button></div><p id="prayerStatus" class="hint" aria-live="polite">Location is needed for local estimates.</p><div id="prayers" class="grid"></div></section>
@@ -76,5 +77,81 @@ $('prayerBtn').addEventListener('click',async()=>{const status=$('prayerStatus')
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 loadAlarmSettings();render();
 initMap();
+</script>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+// Replace these values with the Web App config from your Firebase project.
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_FIREBASE_PROJECT.firebaseapp.com",
+  projectId: "YOUR_FIREBASE_PROJECT_ID",
+  appId: "YOUR_FIREBASE_APP_ID"
+};
+const statusEl = document.getElementById('authStatus');
+const signedOutEl = document.getElementById('authSignedOut');
+const signedInEl = document.getElementById('authSignedIn');
+const emailEl = document.getElementById('authEmail');
+const passwordEl = document.getElementById('authPassword');
+let auth = null;
+const configured = firebaseConfig.apiKey !== 'YOUR_FIREBASE_API_KEY' &&
+  firebaseConfig.projectId !== 'YOUR_FIREBASE_PROJECT_ID' &&
+  firebaseConfig.appId !== 'YOUR_FIREBASE_APP_ID';
+function authError(error) {
+  const map = {
+    'auth/invalid-email':'Please enter a valid email address.',
+    'auth/missing-password':'Enter your password.',
+    'auth/invalid-credential':'Email or password is incorrect.',
+    'auth/email-already-in-use':'An account already exists for this email.',
+    'auth/weak-password':'Use a stronger password (at least 6 characters).',
+    'auth/too-many-requests':'Too many attempts. Please wait and try again.',
+    'auth/network-request-failed':'Network error. Check your internet connection.'
+  };
+  return map[error.code] || error.message || 'Authentication failed.';
+}
+function requireConfigured() {
+  if(configured && auth) return true;
+  statusEl.textContent='Sign-in UI is ready, but authentication is not connected yet. The app owner must add Firebase project configuration and enable Email/Password sign-in.';
+  return false;
+}
+if(configured) {
+  try {
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    onAuthStateChanged(auth, user => {
+      signedOutEl.hidden=!!user;
+      signedInEl.hidden=!user;
+      document.getElementById('authUserEmail').textContent=user?.email||'';
+      if(user) statusEl.textContent='Signed in. Your account is authenticated.';
+      else statusEl.textContent='You are signed out.';
+    });
+  } catch(error) { statusEl.textContent='Could not initialize sign-in: '+authError(error); }
+}
+document.getElementById('authForm').addEventListener('submit',async event=>{
+  event.preventDefault(); if(!requireConfigured()) return;
+  statusEl.textContent='Signing in…';
+  try { await signInWithEmailAndPassword(auth,emailEl.value.trim(),passwordEl.value); }
+  catch(error) { statusEl.textContent=authError(error); }
+});
+document.getElementById('authCreate').addEventListener('click',async()=>{
+  if(!requireConfigured()) return;
+  if(!emailEl.value.trim()||!passwordEl.value){statusEl.textContent='Enter an email and password first.';return}
+  statusEl.textContent='Creating account…';
+  try { await createUserWithEmailAndPassword(auth,emailEl.value.trim(),passwordEl.value); statusEl.textContent='Account created and signed in.'; }
+  catch(error) { statusEl.textContent=authError(error); }
+});
+document.getElementById('authReset').addEventListener('click',async()=>{
+  if(!requireConfigured()) return;
+  if(!emailEl.value.trim()){statusEl.textContent='Enter your email address first.';return}
+  statusEl.textContent='Sending password reset email…';
+  try { await sendPasswordResetEmail(auth,emailEl.value.trim()); statusEl.textContent='Password reset email sent. Check your inbox and spam folder.'; }
+  catch(error) { statusEl.textContent=authError(error); }
+});
+document.getElementById('authSignOut').addEventListener('click',async()=>{
+  if(!requireConfigured()) return;
+  try { await signOut(auth); statusEl.textContent='You are signed out.'; }
+  catch(error) { statusEl.textContent=authError(error); }
+});
 </script>
 </body></html>
