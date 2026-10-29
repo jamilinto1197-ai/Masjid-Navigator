@@ -557,7 +557,7 @@ public class MainActivity extends Activity {
 
                         @Override public void onError(GetCredentialException error) {
                             Log.w(TAG, "Google credential request failed: "
-                                    + error.getClass().getSimpleName() + ", type=" + error.getType());
+                                    + error.getClass().getSimpleName());
                             sourceButton.setEnabled(true);
                             if (status != null) status.setText("Google sign-in could not complete. Check device Google Play services and OAuth configuration, or use email sign-in.");
                         }
