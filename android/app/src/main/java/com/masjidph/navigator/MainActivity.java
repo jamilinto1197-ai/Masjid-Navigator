@@ -89,6 +89,8 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
     private static final String TAG = "MasjidPHNavigator";
@@ -211,7 +213,6 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
-        // API 35+ enforces edge-to-edge; apply system-bar insets to the native layout.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(green);
         getWindow().setNavigationBarColor(Color.WHITE);
@@ -232,8 +233,6 @@ public class MainActivity extends Activity {
                     return;
                 }
                 if (requiresEmailVerification(currentUser)) {
-                    // Do not resend verification messages automatically on auth-state callbacks.
-                    // The login screen offers an explicit, rate-limited resend action.
                     showLogin();
                     return;
                 }
@@ -300,9 +299,7 @@ public class MainActivity extends Activity {
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
             Insets systemBars = windowInsets.getInsets(
                     WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            // Let the header background extend behind the status bar while keeping text readable.
             header.setPadding(dp(20), dp(16) + systemBars.top, dp(20), dp(16));
-            // Keep the bottom navigation/content above the transparent navigation-bar region.
             view.setPadding(0, 0, 0, systemBars.bottom);
             return windowInsets;
         });
@@ -445,8 +442,6 @@ public class MainActivity extends Activity {
                 }
                 return;
             }
-
-            // Refresh Firebase's ID token so Firestore receives the current email_verified claim.
             refreshedUser.getIdToken(true)
                     .addOnSuccessListener(token -> {
                         FirebaseUser signedInUser = auth.getCurrentUser();
@@ -581,8 +576,6 @@ public class MainActivity extends Activity {
     }
 
     private void buildNav() {
-        // Tab changes rebuild the selected-state styling; remove the previous bar first.
-        // Without this guard, every tap appends another navigation row over the content.
         if (nav != null && nav.getParent() == root) {
             root.removeView(nav);
         }
@@ -635,6 +628,17 @@ public class MainActivity extends Activity {
         body.addView(text("A calmer way to stay connected to your local Muslim community.", 14, muted, false));
         body.addView(gap(14));
 
+        LinearLayout updateCard = card();
+        updateCard.addView(text("App updates", 18, ink, true));
+        TextView updateStatus = text("Checking for updates…", 13, muted, false);
+        updateCard.addView(updateStatus);
+        Button updateButton = button("Check for updates");
+        updateCard.addView(updateButton);
+        updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
+        body.addView(updateCard);
+        checkForAppUpdate(updateButton, updateStatus);
+        body.addView(gap(14));
+
         LinearLayout prayerCard = card();
         prayerCard.setBackground(round(green, 20));
         prayerCard.addView(text("TODAY'S PRAYER TIMES", 12, Color.rgb(205, 238, 222), true));
@@ -685,6 +689,71 @@ public class MainActivity extends Activity {
         shortcuts.addView(b);
         b.setOnClickListener(v -> { tab = "explore"; renderTab(tab); buildNav(); });
         body.addView(shortcuts);
+    }
+
+    private void checkForAppUpdate(Button updateButton, TextView updateStatus) {
+        updateButton.setEnabled(false);
+        updateButton.setText("Checking…");
+        ioExecutor.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(
+                        "https://api.github.com/repos/jamilinto1197-ai/Masjid-Navigator/releases/latest").openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(8000);
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                connection.setRequestProperty("User-Agent", "MasjidPH-Navigator-Android");
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    throw new IllegalStateException("Update service unavailable");
+                }
+                StringBuilder response = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) response.append(line);
+                }
+                JSONObject release = new JSONObject(response.toString());
+                Matcher matcher = Pattern.compile("(?i)versionCode\\s*:\\s*(\\d+)").matcher(release.optString("body", ""));
+                if (!matcher.find()) throw new IllegalStateException("Release version metadata is missing");
+                long latestCode = Long.parseLong(matcher.group(1));
+                String tag = release.optString("tag_name", "latest");
+                String download = "";
+                org.json.JSONArray assets = release.optJSONArray("assets");
+                if (assets != null) for (int i = 0; i < assets.length(); i++) {
+                    JSONObject asset = assets.optJSONObject(i);
+                    if (asset != null && asset.optString("name").startsWith("MasjidPH-Navigator-")
+                            && asset.optString("name").endsWith(".apk")) {
+                        download = asset.optString("browser_download_url", "");
+                        if (!download.isEmpty()) break;
+                    }
+                }
+                if (download.isEmpty()) throw new IllegalStateException("No APK is attached to the latest release");
+                final String apkUrl = download;
+                long installedCode = getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode();
+                mainHandler.post(() -> {
+                    updateButton.setEnabled(true);
+                    if (latestCode > installedCode) {
+                        updateStatus.setText("Update available: " + tag + " (version code " + latestCode + ").");
+                        updateButton.setText("Download update");
+                        updateButton.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl))));
+                    } else {
+                        updateStatus.setText("You're using the latest version (" + tag + ").");
+                        updateButton.setText("Check again");
+                        updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
+                    }
+                });
+            } catch (Exception e) {
+                Log.w(TAG, "App update check failed", e);
+                mainHandler.post(() -> {
+                    updateButton.setEnabled(true);
+                    updateButton.setText("Try again");
+                    updateStatus.setText("Couldn't check for updates. Check your connection and try again.");
+                    updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
+                });
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        });
     }
 
     private void loadPrayerTimes() {
@@ -836,7 +905,6 @@ public class MainActivity extends Activity {
                     mosqueItems.addAll(loaded);
                     if (mosqueStatus != null) mosqueStatus.setText("Loaded " + loaded.size() + " mosque listings from Firestore. Verify details before travel.");
                 } else {
-                    // Allow a later Explore visit to retry when the collection is populated.
                     mosqueLoadRequested = false;
                     if (mosqueStatus != null) {
                         mosqueStatus.setText("Firestore has no mosque records yet. Showing starter listings that need local verification.");
@@ -844,7 +912,6 @@ public class MainActivity extends Activity {
                 }
                 renderMosqueResults();
             }).addOnFailureListener(error -> {
-                // A transient network/rules error must not permanently disable retries for this session.
                 mosqueLoadRequested = false;
                 if (mosqueStatus != null) mosqueStatus.setText("Firestore is unavailable. Showing starter listings that need local verification.");
                 renderMosqueResults();
@@ -1342,7 +1409,6 @@ public class MainActivity extends Activity {
         }
         messageCard.setOnLongClickListener(v -> {
             if (mine) {
-                // Firestore rules intentionally prohibit reporting one's own message.
                 new android.app.AlertDialog.Builder(MainActivity.this)
                         .setTitle("Message options")
                         .setMessage("Delete your message?")
@@ -1735,7 +1801,6 @@ public class MainActivity extends Activity {
         b.setAllCaps(false);
         b.setTextSize(15);
         b.setTextColor(Color.WHITE);
-        // Reject taps obscured by another window to reduce overlay/tapjacking risk.
         b.setFilterTouchesWhenObscured(true);
         b.setBackground(round(teal, 14));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
