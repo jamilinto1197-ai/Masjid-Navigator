@@ -23,8 +23,8 @@ android {
         targetSdk 36
         versionCode (System.getenv("APP_VERSION_CODE") ?: "4").toInteger()
         versionName "2.1.1-native"
-        resValue "string", "firebase_android_app_id", firebaseAndroidAppId
-        resValue "string", "default_web_client_id", firebaseWebClientId
+        resValue "string", "firebase_android_app_id", firebaseAndroidAppId.getOrElse("")
+        resValue "string", "default_web_client_id", firebaseWebClientId.getOrElse("")
     }
 
     buildTypes {
