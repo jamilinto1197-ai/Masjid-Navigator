@@ -26,6 +26,7 @@ import android.os.Build;
 import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -90,6 +91,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
+    private static final String TAG = "MasjidPHNavigator";
     private final int green = Color.rgb(6, 78, 59);
     private final int teal = Color.rgb(15, 118, 110);
     private final int pale = Color.rgb(226, 247, 235);
@@ -540,25 +542,31 @@ public class MainActivity extends Activity {
                                     if (task.isSuccessful()) {
                                         if (status != null) status.setText("");
                                     } else {
-                                        if (status != null) status.setText("Google sign-in failed. Verify the Firebase OAuth client and signing fingerprints.");
+                                        Exception failure = task.getException();
+                                        Log.w(TAG, "Firebase Google sign-in failed: "
+                                                + (failure == null ? "unknown" : failure.getClass().getSimpleName()));
+                                        if (status != null) status.setText("Google sign-in failed. Check Firebase Authentication, OAuth client configuration, and the installed app's signing certificate.");
                                     }
                                 });
                             } catch (Exception e) {
+                                Log.w(TAG, "Unable to parse Google credential: " + e.getClass().getSimpleName());
                                 sourceButton.setEnabled(true);
                                 if (status != null) status.setText("Could not read the Google credential. Update the Google Identity configuration and try again.");
                             }
                         }
 
                         @Override public void onError(GetCredentialException error) {
+                            Log.w(TAG, "Google credential request failed: "
+                                    + error.getClass().getSimpleName() + ", type=" + error.getType());
                             sourceButton.setEnabled(true);
-                            if (status != null) status.setText("Google sign-in was cancelled or unavailable. Check OAuth configuration or use email sign-in.");
+                            if (status != null) status.setText("Google sign-in could not complete. Check device Google Play services and OAuth configuration, or use email sign-in.");
                         }
                     });
         } catch (Exception e) {
+            Log.w(TAG, "Could not start Google credential request: " + e.getClass().getSimpleName());
             sourceButton.setEnabled(true);
             if (status != null) status.setText("Could not start Google sign-in. Verify the app's OAuth configuration.");
         }
-    }
 
 
     private void showApp() {
