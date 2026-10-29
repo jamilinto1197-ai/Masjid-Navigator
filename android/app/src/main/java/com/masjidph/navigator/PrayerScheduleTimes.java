@@ -43,6 +43,30 @@ public final class PrayerScheduleTimes {
         return parsed.getTime();
     }
 
+    /**
+     * Parses an entire prayer schedule before callers replace any active alarms.
+     * Input times must be 24-hour HH:mm values in the requested local time zone.
+     */
+    public static long[] parsePrayerTimesMillis(String date, String[] times, String timeZoneId)
+            throws ParseException {
+        if (times == null || times.length == 0) {
+            throw new ParseException("Prayer schedule is empty", 0);
+        }
+        long[] parsed = new long[times.length];
+        for (int i = 0; i < times.length; i++) {
+            try {
+                parsed[i] = parsePrayerTimeMillis(date, times[i], timeZoneId);
+            } catch (ParseException invalid) {
+                ParseException contextual = new ParseException(
+                        "Invalid prayer time at index " + i + ": " + invalid.getMessage(),
+                        invalid.getErrorOffset());
+                contextual.initCause(invalid);
+                throw contextual;
+            }
+        }
+        return parsed;
+    }
+
     /** A prayer alarm is eligible only when it is strictly in the future. */
     public static boolean isFutureTime(long prayerTimeMillis, long nowMillis) {
         return prayerTimeMillis > nowMillis;
