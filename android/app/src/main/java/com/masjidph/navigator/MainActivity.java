@@ -581,6 +581,11 @@ public class MainActivity extends Activity {
     }
 
     private void buildNav() {
+        // Tab changes rebuild the selected-state styling; remove the previous bar first.
+        // Without this guard, every tap appends another navigation row over the content.
+        if (nav != null && nav.getParent() == root) {
+            root.removeView(nav);
+        }
         nav = new LinearLayout(this);
         nav.setGravity(Gravity.CENTER);
         nav.setBackgroundColor(Color.WHITE);
