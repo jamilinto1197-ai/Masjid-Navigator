@@ -569,6 +569,8 @@ public class MainActivity extends Activity {
         }
 
 
+    }
+
     private void showApp() {
         if (root == null) showRoot();
         if (nav != null) root.removeView(nav);
