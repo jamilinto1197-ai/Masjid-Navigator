@@ -9,7 +9,7 @@ on:
       - ".github/workflows/build-apk.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      APP_VERSION_CODE: ${{ github.run_number }}
       FIREBASEANDROIDAPPID: ${{ vars.FIREBASEANDROIDAPPID || secrets.FIREBASEANDROIDAPPID || vars.FIREBASE_ANDROID_APP_ID || secrets.FIREBASE_ANDROID_APP_ID }}
       FIREBASEWEBCLIENTID: ${{ vars.FIREBASEWEBCLIENTID || secrets.FIREBASEWEBCLIENTID || vars.FIREBASE_WEB_CLIENT_ID || secrets.FIREBASE_WEB_CLIENT_ID }}
       FIREBASE_ANDROID_APP_ID: ${{ vars.FIREBASEANDROIDAPPID || secrets.FIREBASEANDROIDAPPID || vars.FIREBASE_ANDROID_APP_ID || secrets.FIREBASE_ANDROID_APP_ID }}
@@ -61,3 +62,18 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish persistent APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v2.1.1-build${GITHUB_RUN_NUMBER}"
+          APK="android/app/build/outputs/apk/debug/MasjidPH-Navigator-${TAG}.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
+          NOTES="$(printf 'versionCode: %s\n\nAutomated debug build from commit %s. This is a development build, not a production-signed release.' "$GITHUB_RUN_NUMBER" "$GITHUB_SHA")"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" --title "MasjidPH Navigator ${TAG}" --notes "$NOTES" --target "$GITHUB_SHA"
+          fi
