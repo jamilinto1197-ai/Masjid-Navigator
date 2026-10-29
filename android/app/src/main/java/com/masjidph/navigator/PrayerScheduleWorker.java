@@ -135,18 +135,15 @@ public final class PrayerScheduleWorker extends Worker {
             // Validate the complete schedule before changing any alarms. If a
             // later prayer is missing or malformed, don't leave a half-updated
             // set of today's reminders mixed with yesterday's schedule.
-            long[] fireTimes = new long[PRAYERS.length];
+            String[] prayerTimes = new String[PRAYERS.length];
+            for (int i = 0; i < PRAYERS.length; i++) {
+                String raw = timings.optString(PRAYERS[i], "").trim();
+                int space = raw.indexOf(' ');
+                prayerTimes[i] = space > 0 ? raw.substring(0, space) : raw;
+            }
+            long[] fireTimes;
             try {
-                for (int i = 0; i < PRAYERS.length; i++) {
-                    String prayer = PRAYERS[i];
-                    String raw = timings.optString(prayer, "").trim();
-                    int space = raw.indexOf(' ');
-                    String time = space > 0 ? raw.substring(0, space) : raw;
-                    if (!time.matches("^\\d{2}:\\d{2}$")) {
-                        throw new ParseException("Invalid time returned for " + prayer, 0);
-                    }
-                    fireTimes[i] = PrayerScheduleTimes.parsePrayerTimeMillis(date, time, ZONE);
-                }
+                fireTimes = PrayerScheduleTimes.parsePrayerTimesMillis(date, prayerTimes, ZONE);
             } catch (ParseException invalidSchedule) {
                 PrayerReminderReceiver.cancelAll(context);
                 throw invalidSchedule;
