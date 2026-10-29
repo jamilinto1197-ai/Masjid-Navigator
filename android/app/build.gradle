@@ -21,8 +21,8 @@ android {
         applicationId "com.masjidph.navigator"
         minSdk 29
         targetSdk 36
-        versionCode 3
-        versionName "2.1.0-native"
+        versionCode 4
+        versionName "2.1.1-native"
         resValue "string", "firebase_android_app_id", firebaseAndroidAppId
         resValue "string", "default_web_client_id", firebaseWebClientId
     }
