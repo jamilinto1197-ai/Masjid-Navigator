@@ -127,23 +127,35 @@ public final class PrayerScheduleWorker extends Worker {
             }
             JSONObject json = new JSONObject(response.toString());
             if (json.optInt("code") != 200 || !json.has("data")) {
+                PrayerReminderReceiver.cancelAll(context);
                 throw new java.io.IOException("Prayer service returned an invalid response");
             }
             JSONObject timings = json.getJSONObject("data").getJSONObject("timings");
-            for (String prayer : PRAYERS) {
-                String raw = timings.optString(prayer, "").trim();
-                int space = raw.indexOf(' ');
-                String time = space > 0 ? raw.substring(0, space) : raw;
-                if (!time.matches("^\\d{2}:\\d{2}$")) {
-                    // Explicitly cancel this prayer's previous alarm when an API
-                    // response is malformed; do not leave a stale reminder behind.
-                    PrayerReminderReceiver.schedule(context, prayer, 0L);
-                    throw new ParseException("Invalid time returned for " + prayer, 0);
+
+            // Validate the complete schedule before changing any alarms. If a
+            // later prayer is missing or malformed, don't leave a half-updated
+            // set of today's reminders mixed with yesterday's schedule.
+            long[] fireTimes = new long[PRAYERS.length];
+            try {
+                for (int i = 0; i < PRAYERS.length; i++) {
+                    String prayer = PRAYERS[i];
+                    String raw = timings.optString(prayer, "").trim();
+                    int space = raw.indexOf(' ');
+                    String time = space > 0 ? raw.substring(0, space) : raw;
+                    if (!time.matches("^\\d{2}:\\d{2}$")) {
+                        throw new ParseException("Invalid time returned for " + prayer, 0);
+                    }
+                    fireTimes[i] = PrayerScheduleTimes.parsePrayerTimeMillis(date, time, ZONE);
                 }
-                long fireAt = PrayerScheduleTimes.parsePrayerTimeMillis(date, time, ZONE);
+            } catch (ParseException invalidSchedule) {
+                PrayerReminderReceiver.cancelAll(context);
+                throw invalidSchedule;
+            }
+
+            for (int i = 0; i < PRAYERS.length; i++) {
                 // schedule() replaces future alarms and cancels times that have
                 // passed, including after the saved location or device clock changes.
-                PrayerReminderReceiver.schedule(context, prayer, fireAt);
+                PrayerReminderReceiver.schedule(context, PRAYERS[i], fireTimes[i]);
             }
         } finally {
             if (connection != null) connection.disconnect();
