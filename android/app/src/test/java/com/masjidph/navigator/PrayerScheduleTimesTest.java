@@ -36,6 +36,43 @@ public class PrayerScheduleTimesTest {
     }
 
     @Test
+    public void parsesEntirePrayerScheduleBeforeScheduling() throws Exception {
+        long[] actual = PrayerScheduleTimes.parsePrayerTimesMillis(
+                "29-10-2026",
+                new String[] {"05:30", "12:00", "15:15", "17:42", "19:01"},
+                "Asia/Manila");
+        assertEquals(5, actual.length);
+        assertEquals(
+                ZonedDateTime.of(2026, 10, 29, 12, 0, 0, 0, ZoneId.of("Asia/Manila"))
+                        .toInstant().toEpochMilli(),
+                actual[1]);
+    }
+
+    @Test
+    public void rejectsEntireScheduleWhenAnyPrayerTimeIsMalformed() throws Exception {
+        try {
+            PrayerScheduleTimes.parsePrayerTimesMillis(
+                    "29-10-2026",
+                    new String[] {"05:30", "12:00", "25:15", "17:42", "19:01"},
+                    "Asia/Manila");
+            fail("A malformed prayer must invalidate the entire schedule");
+        } catch (ParseException expected) {
+            // Callers must not replace any alarms unless every time is valid.
+        }
+    }
+
+    @Test
+    public void rejectsEmptyPrayerSchedule() throws Exception {
+        try {
+            PrayerScheduleTimes.parsePrayerTimesMillis(
+                    "29-10-2026", new String[0], "Asia/Manila");
+            fail("An empty schedule must be rejected");
+        } catch (ParseException expected) {
+            // Expected.
+        }
+    }
+
+    @Test
     public void onlySchedulesStrictlyFuturePrayerTimes() {
         assertTrue(PrayerScheduleTimes.isFutureTime(101L, 100L));
         assertFalse(PrayerScheduleTimes.isFutureTime(100L, 100L));
