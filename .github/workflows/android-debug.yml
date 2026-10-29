@@ -37,8 +37,12 @@ jobs:
     runs-on: ubuntu-latest
     # Job-level env supports both Actions Variables and Secrets contexts.
     env:
-      FIREBASE_ANDROID_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID || secrets.FIREBASE_ANDROID_APP_ID }}
-      FIREBASE_WEB_CLIENT_ID: ${{ vars.FIREBASE_WEB_CLIENT_ID || secrets.FIREBASE_WEB_CLIENT_ID }}
+      # Prefer the renamed repository Actions variables/secrets; keep the previous
+      # underscored names as fallbacks during migration.
+      FIREBASEANDROIDAPPID: ${{ vars.FIREBASEANDROIDAPPID || secrets.FIREBASEANDROIDAPPID || vars.FIREBASE_ANDROID_APP_ID || secrets.FIREBASE_ANDROID_APP_ID }}
+      FIREBASEWEBCLIENTID: ${{ vars.FIREBASEWEBCLIENTID || secrets.FIREBASEWEBCLIENTID || vars.FIREBASE_WEB_CLIENT_ID || secrets.FIREBASE_WEB_CLIENT_ID }}
+      FIREBASE_ANDROID_APP_ID: ${{ vars.FIREBASEANDROIDAPPID || secrets.FIREBASEANDROIDAPPID || vars.FIREBASE_ANDROID_APP_ID || secrets.FIREBASE_ANDROID_APP_ID }}
+      FIREBASE_WEB_CLIENT_ID: ${{ vars.FIREBASEWEBCLIENTID || secrets.FIREBASEWEBCLIENTID || vars.FIREBASE_WEB_CLIENT_ID || secrets.FIREBASE_WEB_CLIENT_ID }}
     timeout-minutes: 40
     steps:
       - name: Check out source
