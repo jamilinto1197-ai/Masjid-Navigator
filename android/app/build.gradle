@@ -2,10 +2,14 @@ plugins {
     id 'com.android.application'
 }
 
+// Prefer the current Actions variable names, while retaining the previous names
+// as a migration fallback for local builds and older workflow configurations.
 def firebaseAndroidAppId = providers.gradleProperty("firebaseAndroidAppId")
+        .orElse(providers.environmentVariable("FIREBASEANDROIDAPPID"))
         .orElse(providers.environmentVariable("FIREBASE_ANDROID_APP_ID"))
         .getOrElse("")
 def firebaseWebClientId = providers.gradleProperty("firebaseWebClientId")
+        .orElse(providers.environmentVariable("FIREBASEWEBCLIENTID"))
         .orElse(providers.environmentVariable("FIREBASE_WEB_CLIENT_ID"))
         .getOrElse("")
 
