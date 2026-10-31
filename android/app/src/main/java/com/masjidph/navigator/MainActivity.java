@@ -413,7 +413,9 @@ public class MainActivity extends Activity {
         long requestStartedAt = System.currentTimeMillis();
         prefs.edit().putLong(LAST_VERIFICATION_EMAIL_SENT_AT, requestStartedAt).apply();
         if (status != null) status.setText("Sending verification email…");
+        Log.i(TAG, "Auth event=verification_email_requested");
         user.sendEmailVerification().addOnCompleteListener(this, task -> {
+            Log.i(TAG, "Auth event=verification_email_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
             if (status == null || status.getParent() == null) return;
             status.setText(task.isSuccessful()
                     ? "Verification email sent. Open the link in your inbox, then return and tap “I've verified my email”."
@@ -469,30 +471,47 @@ public class MainActivity extends Activity {
             message("Enter a valid email and a password with at least 6 characters.");
             return;
         }
+        Log.i(TAG, "Auth event=" + (create ? "email_registration_started" : "email_signin_started"));
         status.setText(create ? "Creating your account…" : "Signing in…");
         if (create) {
             auth.createUserWithEmailAndPassword(email, pass).addOnCompleteListener(this, task -> {
                 if (!task.isSuccessful()) {
+                    Log.w(TAG, "Auth event=email_registration_result success=false " + authErrorSummary(task.getException()));
                     message(authMessage(task.getException()));
                     return;
                 }
+                Log.i(TAG, "Auth event=email_registration_result success=true");
                 FirebaseUser newUser = auth.getCurrentUser();
                 if (requiresEmailVerification(newUser)) {
                     sendVerificationEmail(newUser);
                 }
             });
         } else {
-            auth.signInWithEmailAndPassword(email, pass).addOnCompleteListener(this,
-                    task -> { if (!task.isSuccessful()) message(authMessage(task.getException())); });
+            auth.signInWithEmailAndPassword(email, pass).addOnCompleteListener(this, task -> {
+                Log.i(TAG, "Auth event=email_signin_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
+                if (!task.isSuccessful()) message(authMessage(task.getException()));
+            });
         }
+    }
+
+    private String authErrorSummary(Exception error) {
+        if (error == null) return "exception=unknown";
+        String summary = "exception=" + error.getClass().getSimpleName();
+        if (error instanceof com.google.firebase.auth.FirebaseAuthException) {
+            summary += " code=" + ((com.google.firebase.auth.FirebaseAuthException) error).getErrorCode();
+        }
+        return summary;
     }
 
     private void resetPassword() {
         String email = emailInput.getText().toString().trim();
         if (email.isEmpty()) { message("Enter your email first."); return; }
         if (auth == null || !firebaseReady) { message(firebaseConfigError); return; }
-        auth.sendPasswordResetEmail(email).addOnCompleteListener(this,
-                task -> message(task.isSuccessful() ? "Password reset email sent." : authMessage(task.getException())));
+        Log.i(TAG, "Auth event=password_reset_requested");
+        auth.sendPasswordResetEmail(email).addOnCompleteListener(this, task -> {
+            Log.i(TAG, "Auth event=password_reset_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
+            message(task.isSuccessful() ? "Password reset email sent." : authMessage(task.getException()));
+        });
     }
     private void signInWithGoogle(Button sourceButton) {
         if (!firebaseReady || auth == null) {
@@ -505,6 +524,7 @@ public class MainActivity extends Activity {
             return;
         }
         sourceButton.setEnabled(false);
+        Log.i(TAG, "Auth event=google_signin_started");
         if (status != null) status.setText("Opening Google sign-in…");
         try {
             CredentialManager manager = CredentialManager.create(this);
@@ -521,6 +541,7 @@ public class MainActivity extends Activity {
                     new CredentialManagerCallback<GetCredentialResponse, GetCredentialException>() {
                         @Override public void onResult(GetCredentialResponse response) {
                             Credential credential = response.getCredential();
+                            Log.i(TAG, "Auth event=google_credential_received type=" + (credential == null ? "null" : credential.getClass().getSimpleName()));
                             if (!(credential instanceof CustomCredential)
                                     || !GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(credential.getType())) {
                                 sourceButton.setEnabled(true);
@@ -534,6 +555,7 @@ public class MainActivity extends Activity {
                                         GoogleAuthProvider.getCredential(googleCredential.getIdToken(), null);
                                 auth.signInWithCredential(firebaseCredential).addOnCompleteListener(MainActivity.this, task -> {
                                     sourceButton.setEnabled(true);
+                                    Log.i(TAG, "Auth event=google_firebase_signin_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
                                     if (task.isSuccessful()) {
                                         if (status != null) status.setText("");
                                     } else {
@@ -551,14 +573,13 @@ public class MainActivity extends Activity {
                         }
 
                         @Override public void onError(GetCredentialException error) {
-                            Log.w(TAG, "Google credential request failed: "
-                                    + error.getClass().getSimpleName());
+                            Log.w(TAG, "Auth event=google_credential_request_failed exception=" + error.getClass().getSimpleName());
                             sourceButton.setEnabled(true);
                             if (status != null) status.setText("Google sign-in could not complete. Check device Google Play services and OAuth configuration, or use email sign-in.");
                         }
                     });
         } catch (Exception e) {
-            Log.w(TAG, "Could not start Google credential request: " + e.getClass().getSimpleName());
+            Log.w(TAG, "Auth event=google_credential_start_failed exception=" + e.getClass().getSimpleName());
             sourceButton.setEnabled(true);
             if (status != null) status.setText("Could not start Google sign-in. Verify the app's OAuth configuration.");
         }
