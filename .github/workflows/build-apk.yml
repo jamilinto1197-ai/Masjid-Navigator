@@ -52,14 +52,28 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon -p android :app:assembleDebug --stacktrace --console=plain
 
-      - name: Verify APK exists
-        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify APK and record signing certificate fingerprints
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          {
+            echo "APK: $APK"
+            echo "Commit: $GITHUB_SHA"
+            echo "Package: com.masjidph.navigator"
+            echo
+            echo "Signing certificate fingerprints (register SHA-1 and SHA-256 in Firebase project settings for this exact APK):"
+            keytool -printcert -jarfile "$APK"
+          } | tee android/app/build/outputs/apk/debug/signing-certificate.txt
 
-      - name: Upload installable debug APK
+      - name: Upload installable debug APK and signing details
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: Masjid-Navigator-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/signing-certificate.txt
           if-no-files-found: error
           retention-days: 14
 
@@ -70,10 +84,11 @@ jobs:
           set -euo pipefail
           TAG="v2.1.1-build${GITHUB_RUN_NUMBER}"
           APK="android/app/build/outputs/apk/debug/MasjidPH-Navigator-${TAG}.apk"
+          FINGERPRINTS="android/app/build/outputs/apk/debug/signing-certificate.txt"
           cp android/app/build/outputs/apk/debug/app-debug.apk "$APK"
-          NOTES="$(printf 'versionCode: %s\n\nAutomated debug build from commit %s. This is a development build, not a production-signed release.' "$GITHUB_RUN_NUMBER" "$GITHUB_SHA")"
+          NOTES="$(printf 'versionCode: %s\nCommit: %s\n\nAutomated debug build. This is a development build, not a production-signed release. Google sign-in requires the APK signing certificate SHA-1/SHA-256 to be registered in Firebase Authentication project settings. See the signing-certificate.txt release asset.' "$GITHUB_RUN_NUMBER" "$GITHUB_SHA")"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" --clobber
+            gh release upload "$TAG" "$APK" "$FINGERPRINTS" --clobber
           else
-            gh release create "$TAG" "$APK" --title "MasjidPH Navigator ${TAG}" --notes "$NOTES" --target "$GITHUB_SHA"
+            gh release create "$TAG" "$APK" "$FINGERPRINTS" --title "MasjidPH Navigator ${TAG}" --notes "$NOTES" --target "$GITHUB_SHA"
           fi
