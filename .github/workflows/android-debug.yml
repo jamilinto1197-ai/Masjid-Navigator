@@ -35,6 +35,11 @@ jobs:
           gradle-version: '8.7'
       - name: Compile debug APK locally only
         run: gradle --no-daemon -p android :app:clean :app:assembleDebug
+      - name: Print debug signing certificate fingerprints
+        run: |
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" verify --print-certs "$APK"
       - name: Verify package identity and compute local hash
         run: |
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
