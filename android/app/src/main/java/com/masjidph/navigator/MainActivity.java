@@ -108,7 +108,7 @@ public class MainActivity extends Activity {
   @Override protected void onActivityResult(int requestCode,int resultCode,android.content.Intent data){
     super.onActivityResult(requestCode,resultCode,data);
     if(requestCode!=GOOGLE_SIGN_IN_REQUEST)return;
-    if(resultCode!=RESULT_OK || data==null){ message("Google sign-in was cancelled or did not return an account. Try again, or use email sign-in."); return; }
+    if(data==null){ message("Google sign-in returned no result data (result code "+resultCode+"). Try again, or use email sign-in."); return; }
     try {
       Task<GoogleSignInAccount> task=GoogleSignIn.getSignedInAccountFromIntent(data);
       GoogleSignInAccount account=task.getResult(ApiException.class);
