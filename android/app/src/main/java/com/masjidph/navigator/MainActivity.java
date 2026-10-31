@@ -645,8 +645,8 @@ public class MainActivity extends Activity {
         prayerCard.addView(gap(8));
         prayerStatus = text("Tap below to estimate times for your location.", 13, Color.rgb(226, 247, 235), false);
         prayerCard.addView(prayerStatus);
-        prayerTimes = text("Fajr  —     Sunrise  —\nDhuhr —     Asr      —\nMaghrib —     Isha     —",
-                16, Color.WHITE, true);
+        prayerTimes = text("Today's prayer times haven't been loaded yet.\nTap the button below to fetch times for your location.",
+                15, Color.WHITE, false);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-1, -2);
         tp.topMargin = dp(10);
         prayerCard.addView(prayerTimes, tp);
@@ -758,14 +758,15 @@ public class MainActivity extends Activity {
 
     private void loadPrayerTimes() {
         if (prayerStatus != null) prayerStatus.setText("Requesting your location…");
-        if (prayerTimes != null) prayerTimes.setText("Fajr —   Sunrise —   Dhuhr —   Asr —   Maghrib —   Isha —");
+        if (prayerTimes != null) prayerTimes.setText("Getting today's prayer times…");
         findCurrentLocation(new LocationResult() {
             @Override public void onSuccess(Location location) {
                 if (prayerStatus != null) prayerStatus.setText("Fetching estimated times for your coordinates…");
                 fetchPrayerTimes(location);
             }
             @Override public void onError(String message) {
-                if (prayerStatus != null) prayerStatus.setText("Location unavailable: " + message);
+                if (prayerStatus != null) prayerStatus.setText("Couldn't get your location: " + message);
+                if (prayerTimes != null) prayerTimes.setText("Prayer times are unavailable until location access succeeds.");
             }
         });
     }
@@ -826,6 +827,7 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     if (prayerStatus != null) prayerStatus.setText("Could not fetch prayer times. Check your connection and try again.");
+                    if (prayerTimes != null) prayerTimes.setText("Today's prayer times couldn't be loaded. Tap the button to retry.");
                 });
             } finally {
                 if (connection != null) connection.disconnect();
@@ -1243,7 +1245,11 @@ public class MainActivity extends Activity {
             if (rooms.isEmpty()) {
                 communityStatus.setText("No mosque documents are published in Firestore yet. Chat rooms appear here once the directory is configured.");
                 communityMessageList.removeAllViews();
-                communityMessageList.addView(text("No published community rooms.", 14, muted, false));
+                communityMessageList.addView(text("Chat is unavailable because no masjid rooms are published yet. Please try again after the directory is set up.", 14, ink, false));
+                communityMessageInput.setEnabled(false);
+                communityMessageInput.setHint("Chat unavailable — no masjid rooms");
+                send.setEnabled(false);
+                send.setText("Chat unavailable");
                 return;
             }
             communityStatus.setText("Loaded " + rooms.size() + " community room(s). Select a masjid to read and send messages.");
@@ -1260,6 +1266,10 @@ public class MainActivity extends Activity {
             communityStatus.setText("Could not load community rooms. Check Firebase configuration and Firestore read rules.");
             communityMessageList.removeAllViews();
             communityMessageList.addView(text("The directory is unavailable.", 14, muted, false));
+            communityMessageInput.setEnabled(false);
+            communityMessageInput.setHint("Chat unavailable — directory failed to load");
+            send.setEnabled(false);
+            send.setText("Chat unavailable");
         });
     }
 
