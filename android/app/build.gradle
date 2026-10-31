@@ -11,6 +11,7 @@ def buildConfigString = { String name ->
 }
 
 android {
+    buildFeatures { buildConfig true }
     namespace "com.masjidph.navigator"
     compileSdk 35
     defaultConfig {
