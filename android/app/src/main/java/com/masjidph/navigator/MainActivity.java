@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
   private String tab="home";
   private boolean firebaseReady=false;
   private static final int GOOGLE_SIGN_IN_REQUEST = 9001;
-  private static final String WEB_CLIENT_ID = "885467340998-0bl7chvlvfpdbn342tcu0ncjifa1d8ue.apps.googleusercontent.com";
+  private static final String WEB_CLIENT_ID = BuildConfig.GOOGLE_WEB_CLIENT_ID;
   private EditText emailInput,passwordInput,nameInput,locationInput,bioInput;
   private TextView status;
 
@@ -51,11 +51,11 @@ public class MainActivity extends Activity {
     try {
       if(FirebaseApp.getApps(this).isEmpty()){
         FirebaseOptions options=new FirebaseOptions.Builder()
-          .setApiKey("AIzaSyD8dAithg720lftGXMvhXMh93Blekl2pMw")
-          .setApplicationId("1:885467340998:android:913114c4da94798283b7c7")
-          .setProjectId("masjid-109f3")
-          .setGcmSenderId("885467340998")
-          .setStorageBucket("masjid-109f3.firebasestorage.app").build();
+          .setApiKey(BuildConfig.FIREBASE_API_KEY)
+          .setApplicationId(BuildConfig.FIREBASE_APP_ID)
+          .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
+          .setGcmSenderId(BuildConfig.FIREBASE_MESSAGING_SENDER_ID)
+          .setStorageBucket(BuildConfig.FIREBASE_STORAGE_BUCKET).build();
         FirebaseApp.initializeApp(this,options);
       }
       auth=FirebaseAuth.getInstance(); db=FirebaseFirestore.getInstance(); firebaseReady=true;
