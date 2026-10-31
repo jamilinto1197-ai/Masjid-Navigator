@@ -14,6 +14,14 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import java.util.Locale;
@@ -28,6 +36,10 @@ public class MainActivity extends Activity {
   private boolean firebaseReady=false;
   private EditText emailInput,passwordInput,nameInput,locationInput,bioInput;
   private TextView status;
+  private static final int GOOGLE_SIGN_IN_REQUEST = 9001;
+  // This must be the OAuth 2.0 Web application client ID from the same Firebase/Google Cloud project.
+  private static final String WEB_CLIENT_ID = "885467340998-0bl7chvlvfpdbn342tcu0ncjifa1d8ue.apps.googleusercontent.com";
+  private GoogleSignInClient googleSignInClient;
 
   @Override public void onCreate(Bundle saved) {
     super.onCreate(saved);
@@ -72,11 +84,54 @@ public class MainActivity extends Activity {
     emailInput=input("Email address",false);form.addView(emailInput);passwordInput=input("Password",true);form.addView(passwordInput);
     Button sign=button("Sign in");form.addView(sign);sign.setOnClickListener(v->authenticate(false));
     Button create=button("Create account");create.setBackground(round(pale,14));create.setTextColor(green);form.addView(create);create.setOnClickListener(v->authenticate(true));
-    Button google=button("Continue with Google");google.setBackground(round(Color.WHITE,14));google.setTextColor(green);form.addView(google);google.setOnClickListener(v->message("Google sign-in needs the Android OAuth client and SHA-1/SHA-256 fingerprints configured in Firebase. Email sign-in can be used meanwhile."));
+    Button google=button("Continue with Google");google.setBackground(round(Color.WHITE,14));google.setTextColor(green);form.addView(google);google.setOnClickListener(v->startGoogleSignIn());
     Button reset=button("Forgot password?");reset.setBackgroundColor(Color.TRANSPARENT);reset.setTextColor(teal);form.addView(reset);reset.setOnClickListener(v->resetPassword());
     status=text("",13,Color.rgb(170,45,45),false);form.addView(status);body.addView(form);
     body.addView(gap(12));body.addView(text("By continuing, you agree to follow each masjid community's rules. Be respectful and protect your personal information.",12,muted,false));
   }
+
+  private void startGoogleSignIn(){
+    if(!firebaseReady || auth==null){ message("Firebase is unavailable. Check your connection and Firebase configuration."); return; }
+    try {
+      if(googleSignInClient==null){
+        GoogleSignInOptions options=new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+          .requestIdToken(WEB_CLIENT_ID)
+          .requestEmail()
+          .build();
+        googleSignInClient=GoogleSignIn.getClient(this,options);
+      }
+      if(status!=null) status.setText("Opening Google sign-in…");
+      startActivityForResult(googleSignInClient.getSignInIntent(),GOOGLE_SIGN_IN_REQUEST);
+    } catch(Exception e){ message("Could not start Google sign-in: "+authMessage(e)); }
+  }
+
+  @Override protected void onActivityResult(int requestCode,int resultCode,android.content.Intent data){
+    super.onActivityResult(requestCode,resultCode,data);
+    if(requestCode!=GOOGLE_SIGN_IN_REQUEST)return;
+    if(resultCode!=RESULT_OK || data==null){ message("Google sign-in was cancelled or did not return an account. Try again, or use email sign-in."); return; }
+    try {
+      Task<GoogleSignInAccount> task=GoogleSignIn.getSignedInAccountFromIntent(data);
+      GoogleSignInAccount account=task.getResult(ApiException.class);
+      if(account==null || account.getIdToken()==null || account.getIdToken().isEmpty()){
+        message("Google did not return an ID token. Verify the Web OAuth client ID and Android signing fingerprints."); return;
+      }
+      if(status!=null)status.setText("Signing in with Firebase…");
+      AuthCredential credential=GoogleAuthProvider.getCredential(account.getIdToken(),null);
+      auth.signInWithCredential(credential).addOnCompleteListener(this,t->{
+        if(t.isSuccessful()){
+          status=null;
+          showApp();
+        } else {
+          Exception e=t.getException();
+          message("Firebase Google sign-in failed: "+authMessage(e));
+        }
+      });
+    } catch(ApiException e){
+      String detail="Google sign-in failed (status "+e.getStatusCode()+"): "+(e.getMessage()==null?"No details":e.getMessage());
+      message(detail+" Verify the Android OAuth client package/SHA-1 and the Web client ID.");
+    } catch(Exception e){ message("Google sign-in failed: "+authMessage(e)); }
+  }
+
   private void authenticate(boolean create){
     if(!firebaseReady){message("Firebase could not initialize. Check the Android Firebase configuration and internet connection.");return;}
     String email=emailInput.getText().toString().trim(), pass=passwordInput.getText().toString();
