@@ -1,4 +1,4 @@
-name: Android compile check (APK distribution paused)
+name: Android debug APK build
 
 on:
   workflow_dispatch:
@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  compile-only:
-    name: Compile smoke test (no APK published)
+  build-debug-apk:
+    name: Build and package native Android debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -33,17 +33,21 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Compile debug APK locally only
+      - name: Build debug APK
         run: gradle --no-daemon -p android :app:clean :app:assembleDebug
-      - name: Print debug signing certificate fingerprints
+      - name: Verify APK signature and package identity
         run: |
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          "$APKSIGNER" verify --print-certs "$APK"
-      - name: Verify package identity and compute local hash
-        run: |
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          "$APKSIGNER" verify --print-certs "$APK"
           "$AAPT" dump badging "$APK" | grep -F "package: name='com.masjidph.navigator'"
           sha256sum "$APK"
-          echo "The APK was compiled for diagnostics only. It is not uploaded or published because security review is still open."
+      - name: Upload installable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: masjidph-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
