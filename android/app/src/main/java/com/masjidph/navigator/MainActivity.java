@@ -39,6 +39,11 @@ import android.text.InputType;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import org.osmdroid.config.Configuration;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
 import android.text.InputFilter;
 
 import androidx.core.graphics.Insets;
@@ -1128,13 +1133,39 @@ public class MainActivity extends Activity {
     }
 
     private void openDirections(MosqueItem item) {
-        try {
-            Uri uri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination="
-                    + item.latitude + "," + item.longitude + "&travelmode=driving");
-            startActivity(new Intent(Intent.ACTION_VIEW, uri));
-        } catch (Exception e) {
-            message("No app is available to open directions.");
-        }
+        Configuration.getInstance().setUserAgentValue(getPackageName());
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(16);
+        content.setPadding(padding, padding, padding, padding);
+
+        TextView title = text(item.name, 20, ink, true);
+        content.addView(title);
+        content.addView(text(item.city + ", " + item.province + "\n"
+                + String.format(Locale.US, "Destination: %.5f, %.5f", item.latitude, item.longitude),
+                13, muted, false));
+
+        MapView map = new MapView(this);
+        map.setTileSource(TileSourceFactory.MAPNIK);
+        map.setMultiTouchControls(true);
+        GeoPoint destination = new GeoPoint(item.latitude, item.longitude);
+        map.getController().setZoom(15.0);
+        map.getController().setCenter(destination);
+        Marker marker = new Marker(map);
+        marker.setPosition(destination);
+        marker.setTitle(item.name);
+        marker.setSubDescription(item.address == null ? "" : item.address);
+        map.getOverlays().add(marker);
+        LinearLayout.LayoutParams mapParams = new LinearLayout.LayoutParams(-1, dp(320));
+        mapParams.topMargin = dp(12);
+        content.addView(map, mapParams);
+
+        content.addView(text("This in-app map shows the selected masjid. Live turn-by-turn routing is a later addition; confirm local access and parking before travel.",
+                12, muted, false));
+        new android.app.AlertDialog.Builder(this)
+                .setView(content)
+                .setPositiveButton("Close", null)
+                .show();
     }
 
     private List<MosqueItem> starterMosques() {
