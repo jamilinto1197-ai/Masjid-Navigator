@@ -42,6 +42,7 @@ android {
         signingConfigs {
             stableDebug {
                 storeFile file(debugKeystorePath)
+                storeType "PKCS12"
                 storePassword debugKeystorePassword
                 keyAlias debugKeyAlias
                 keyPassword debugKeyPassword
