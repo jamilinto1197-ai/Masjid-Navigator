@@ -143,10 +143,16 @@ jobs:
           # Accept the raw Base64 value, whitespace copied by a shell, or an
           # accidentally pasted NAME=value line from the setup instructions.
           keystore_base64="${ANDROID_DEBUG_KEYSTORE_BASE64#ANDROID_DEBUG_KEYSTORE_BASE64=}"
+          keystore_password="${ANDROID_DEBUG_KEYSTORE_PASSWORD#ANDROID_DEBUG_KEYSTORE_PASSWORD=}"
+          key_alias="${ANDROID_DEBUG_KEY_ALIAS#ANDROID_DEBUG_KEY_ALIAS=}"
+          key_password="${ANDROID_DEBUG_KEY_PASSWORD#ANDROID_DEBUG_KEY_PASSWORD=}"
           printf '%s' "$keystore_base64" | tr -d '[:space:]' | base64 --decode > "$keystore_path"
           chmod 600 "$keystore_path"
-          keytool -list -keystore "$keystore_path" -storepass "$ANDROID_DEBUG_KEYSTORE_PASSWORD" -alias "$ANDROID_DEBUG_KEY_ALIAS" >/dev/null
+          keytool -list -keystore "$keystore_path" -storepass "$keystore_password" -alias "$key_alias" >/dev/null
           export ANDROID_DEBUG_KEYSTORE_PATH="$keystore_path"
+          export ANDROID_DEBUG_KEYSTORE_PASSWORD="$keystore_password"
+          export ANDROID_DEBUG_KEY_ALIAS="$key_alias"
+          export ANDROID_DEBUG_KEY_PASSWORD="$key_password"
           echo "ANDROID_DEBUG_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
           gradle --no-daemon --write-locks -p android \
             :app:clean \
