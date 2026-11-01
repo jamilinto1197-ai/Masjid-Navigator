@@ -4,6 +4,10 @@
   "private": true,
   "description": "Philippine mosque finder and prayer companion (native Android plus standalone static PWA)",
   "scripts": {
-    "check": "bash scripts/check-project.sh"
+    "check": "bash scripts/check-project.sh",
+    "grant-admin": "node scripts/grant-admin-claim.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "13.7.0"
   }
 }
