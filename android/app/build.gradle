@@ -116,4 +116,5 @@ dependencies {
     // WorkManager's public Worker API exposes ListenableFuture at compile time.
     implementation 'com.google.guava:guava:33.7.2-android'
     implementation 'androidx.core:core:1.16.0'
+    implementation 'org.osmdroid:osmdroid-android:6.1.20'
 }
