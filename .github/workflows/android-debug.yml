@@ -143,6 +143,7 @@ jobs:
           printf '%s' "$ANDROID_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$keystore_path"
           chmod 600 "$keystore_path"
           keytool -list -keystore "$keystore_path" -storepass "$ANDROID_DEBUG_KEYSTORE_PASSWORD" -alias "$ANDROID_DEBUG_KEY_ALIAS" >/dev/null
+          export ANDROID_DEBUG_KEYSTORE_PATH="$keystore_path"
           echo "ANDROID_DEBUG_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
           gradle --no-daemon --write-locks -p android \
             :app:clean \
