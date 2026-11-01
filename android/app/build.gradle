@@ -13,6 +13,17 @@ def firebaseWebClientId = providers.gradleProperty("firebaseWebClientId")
         .orElse(providers.environmentVariable("FIREBASE_WEB_CLIENT_ID"))
         .getOrElse("")
 
+def debugKeystorePath = System.getenv("ANDROID_DEBUG_KEYSTORE_PATH") ?: ""
+def debugKeystorePassword = System.getenv("ANDROID_DEBUG_KEYSTORE_PASSWORD") ?: ""
+def debugKeyAlias = System.getenv("ANDROID_DEBUG_KEY_ALIAS") ?: ""
+def debugKeyPassword = System.getenv("ANDROID_DEBUG_KEY_PASSWORD") ?: ""
+def stableDebugSigningConfigured = [
+        debugKeystorePath,
+        debugKeystorePassword,
+        debugKeyAlias,
+        debugKeyPassword
+].every { !it.trim().isEmpty() }
+
 android {
     namespace "com.masjidph.navigator"
     compileSdk 36
@@ -27,8 +38,23 @@ android {
         resValue "string", "default_web_client_id", firebaseWebClientId
     }
 
+    if (stableDebugSigningConfigured) {
+        signingConfigs {
+            stableDebug {
+                storeFile file(debugKeystorePath)
+                storePassword debugKeystorePassword
+                keyAlias debugKeyAlias
+                keyPassword debugKeyPassword
+            }
+        }
+    }
+
     buildTypes {
-        debug { }
+        debug {
+            if (stableDebugSigningConfigured) {
+                signingConfig signingConfigs.stableDebug
+            }
+        }
         release {
             minifyEnabled false
             shrinkResources false
