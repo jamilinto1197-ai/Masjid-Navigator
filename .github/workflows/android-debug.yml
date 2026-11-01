@@ -25,7 +25,7 @@ on:
     - cron: "23 5 * * 1"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-security-${{ github.ref }}
@@ -245,6 +245,21 @@ jobs:
             android/app/build/outputs/apk/debug/app-debug.apk.sha256
           if-no-files-found: error
           retention-days: 7
+
+      - name: Publish debug APK to GitHub Releases
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v2.1.2-build${GITHUB_RUN_NUMBER}"
+          apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          checksum="android/app/build/outputs/apk/debug/app-debug.apk.sha256"
+          cp "$apk" "Masjid-Navigator-${tag}.apk"
+          gh release create "$tag" "Masjid-Navigator-${tag}.apk" "$checksum" \
+            --target "$GITHUB_SHA" \
+            --title "Masjid Navigator ${tag}" \
+            --notes "Automated signed debug build for device testing. SHA-256 is provided with the APK."
 
       - name: Upload security reports
         if: always()
