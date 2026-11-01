@@ -64,7 +64,7 @@ jobs:
             echo "Package: com.masjidph.navigator"
             echo
             echo "Signing certificate fingerprints (register SHA-1 and SHA-256 in Firebase project settings for this exact APK):"
-            keytool -printcert -jarfile "$APK"
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK"
           } | tee android/app/build/outputs/apk/debug/signing-certificate.txt
 
       - name: Upload installable debug APK and signing details
