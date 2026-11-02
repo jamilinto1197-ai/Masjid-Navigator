@@ -14,7 +14,7 @@
 	<string name="verification_account_changed">Your account changed while checking verification. Please sign in again.</string>
 	<string name="verification_token_refresh_failed">Your email is verified, but the security token could not refresh. Check your connection and try again.</string>
 	<string name="google_sign_in_opening">Opening Google sign-in&#8230;</string>
-	<string name="google_sign_in_start_failed">Could not start Google sign-in. Verify the app\\'s OAuth configuration.</string>
+	<string name="google_sign_in_start_failed">Could not start Google sign-in. Verify the app\'s OAuth configuration.</string>
 	<string name="google_sign_in_firebase_pending">Signing in with Firebase&#8230;</string>
 	<string name="home_subtitle">Your masjid and salah companion</string>
 	<string name="explore_subtitle">Discover masjids near you</string>
@@ -25,19 +25,19 @@
 	<string name="update_checking">Checking&#8230;</string>
 	<string name="update_available">Update available: %1$s (version code %2$d).</string>
 	<string name="update_download">Download update</string>
-	<string name="update_latest_version">You\\'re using the latest version (%1$s).</string>
+	<string name="update_latest_version">You\'re using the latest version (%1$s).</string>
 	<string name="update_check_again">Check again</string>
 	<string name="update_try_again">Try again</string>
-	<string name="update_check_failed">Couldn\\'t check for updates. Check your connection and try again.</string>
+	<string name="update_check_failed">Couldn\'t check for updates. Check your connection and try again.</string>
 	<string name="prayer_location_requesting">Requesting your location&#8230;</string>
-	<string name="prayer_times_loading">Getting today\\'s prayer times&#8230;</string>
+	<string name="prayer_times_loading">Getting today\'s prayer times&#8230;</string>
 	<string name="prayer_times_fetching_estimates">Fetching estimated times for your coordinates&#8230;</string>
-	<string name="prayer_location_failed">Couldn\\'t get your location: %1$s</string>
+	<string name="prayer_location_failed">Couldn\'t get your location: %1$s</string>
 	<string name="prayer_times_location_required">Prayer times are unavailable until location access succeeds.</string>
 	<string name="prayer_reminders_updating_location">Updating your daily prayer reminders from this location&#8230;</string>
 	<string name="prayer_times_estimated_location_manila">Estimated for your current location &#183; Asia/Manila.</string>
 	<string name="prayer_times_fetch_failed">Could not fetch prayer times. Check your connection and try again.</string>
-	<string name="prayer_times_load_failed">Today\\'s prayer times couldn\\'t be loaded. Tap the button to retry.</string>
+	<string name="prayer_times_load_failed">Today\'s prayer times couldn\'t be loaded. Tap the button to retry.</string>
 	<string name="mosque_location_failed">Could not get location: %1$s</string>
 	<string name="mosque_directory_loading">Loading mosque directory&#8230;</string>
 	<plurals name="mosque_listings_loaded">
@@ -71,6 +71,6 @@
 	<string name="profile_save_failed">Could not save profile. Check your connection and Firestore rules.</string>
 	<string name="auth_creating_account">Creating your account&#8230;</string>
 	<string name="auth_signing_in">Signing in&#8230;</string>
-	<string name="verification_email_sent">Verification email sent. Open the link in your inbox, then return and tap &quot;I\\'ve verified my email&quot;.</string>
+	<string name="verification_email_sent">Verification email sent. Open the link in your inbox, then return and tap &quot;I\'ve verified my email&quot;.</string>
 	<string name="verification_email_failed">Could not send the verification email. Check your connection and try again later.</string>
 </resources>
