@@ -1141,7 +1141,6 @@ public class MainActivity extends Activity {
         Marker marker = new Marker(map);
         marker.setPosition(destination);
         marker.setTitle(item.name);
-        marker.setSnippet(item.address == null ? "" : item.address);
         map.getOverlays().add(marker);
         LinearLayout.LayoutParams mapParams = new LinearLayout.LayoutParams(-1, dp(320));
         mapParams.topMargin = dp(12);
