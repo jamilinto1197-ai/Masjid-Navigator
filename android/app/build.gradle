@@ -2,25 +2,117 @@ plugins {
     id 'com.android.application'
 }
 
+// Prefer the current Actions variable names, while retaining the previous names
+// as a migration fallback for local builds and older workflow configurations.
+def firebaseAndroidAppId = providers.gradleProperty("firebaseAndroidAppId")
+        .orElse(providers.environmentVariable("FIREBASEANDROIDAPPID"))
+        .orElse(providers.environmentVariable("FIREBASE_ANDROID_APP_ID"))
+        .getOrElse("")
+def firebaseWebClientId = providers.gradleProperty("firebaseWebClientId")
+        .orElse(providers.environmentVariable("FIREBASEWEBCLIENTID"))
+        .orElse(providers.environmentVariable("FIREBASE_WEB_CLIENT_ID"))
+        .getOrElse("")
+
+def debugKeystorePath = System.getenv("ANDROID_DEBUG_KEYSTORE_PATH") ?: ""
+def debugKeystorePassword = System.getenv("ANDROID_DEBUG_KEYSTORE_PASSWORD") ?: ""
+def debugKeyAlias = System.getenv("ANDROID_DEBUG_KEY_ALIAS") ?: ""
+def debugKeyPassword = System.getenv("ANDROID_DEBUG_KEY_PASSWORD") ?: ""
+def stableDebugSigningConfigured = [
+        debugKeystorePath,
+        debugKeystorePassword,
+        debugKeyAlias,
+        debugKeyPassword
+].every { !it.trim().isEmpty() }
+
 android {
     namespace "com.masjidph.navigator"
-    compileSdk 35
+    compileSdk 36
+
     defaultConfig {
         applicationId "com.masjidph.navigator"
-        minSdk 24
-        targetSdk 35
-        versionCode 2
-        versionName "2.0.0-native"
+        minSdk 29
+        targetSdk 36
+        versionCode = (System.getenv("APP_VERSION_CODE") ?: "4").toInteger()
+        versionName "2.1.2-native"
+        resValue "string", "firebase_android_app_id", firebaseAndroidAppId
+        resValue "string", "default_web_client_id", firebaseWebClientId
     }
+
+    if (stableDebugSigningConfigured) {
+        signingConfigs {
+            stableDebug {
+                storeFile file(debugKeystorePath)
+                storeType "PKCS12"
+                storePassword debugKeystorePassword
+                keyAlias debugKeyAlias
+                keyPassword debugKeyPassword
+            }
+        }
+    }
+
     buildTypes {
-        debug { }
-        release { minifyEnabled false; shrinkResources false }
+        debug {
+            if (stableDebugSigningConfigured) {
+                signingConfig signingConfigs.stableDebug
+            }
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+// Lock resolved dependencies during the security workflow so OSV-Scanner can
+// inspect the exact versions selected for this build.
+dependencyLocking {
+    lockAllConfigurations()
+}
+
+tasks.register("resolveAllDependenciesForSecurity") {
+    doLast {
+        // Resolve only the application compile/runtime graphs. Resolving every
+        // Android configuration also touches ambiguous androidTest variants.
+        ["debugCompileClasspath", "debugRuntimeClasspath",
+         "releaseCompileClasspath", "releaseRuntimeClasspath"].each { name ->
+            def configuration = configurations.findByName(name)
+            if (configuration != null && configuration.canBeResolved) {
+                configuration.resolve()
+            }
+        }
+    }
+}
+
+tasks.register("checkFirebaseAndroidConfig") {
+    doLast {
+        if (!(firebaseAndroidAppId ==~ /^1:885467340998:android:[0-9a-fA-F]+$/)) {
+            throw new GradleException(
+                "Firebase Android app ID is missing or invalid. Register package com.masjidph.navigator in Firebase and set FIREBASE_ANDROID_APP_ID (or -PfirebaseAndroidAppId) to its mobilesdk_app_id."
+            )
+        }
+        if (!(firebaseWebClientId ==~ /^[0-9]+-[A-Za-z0-9-]+\.apps\.googleusercontent\.com$/)) {
+            throw new GradleException(
+                "Google OAuth web client ID is missing or invalid. Set FIREBASE_WEB_CLIENT_ID (or -PfirebaseWebClientId) to the project's Web application OAuth client ID."
+            )
+        }
     }
 }
 
 dependencies {
-    implementation platform('com.google.firebase:firebase-bom:34.4.0')
+    testImplementation 'junit:junit:4.13.2'
+
+    constraints {
+        implementation('com.google.guava:guava:33.7.2-android') {
+            because 'Fixes GHSA-xxph-c9ww-hj94 (CVSS 8.2) in transitive Guava 33.6.0-android'
+        }
+    }
+    implementation platform('com.google.firebase:firebase-bom:35.1.0')
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'
     implementation 'com.google.android.gms:play-services-auth:21.3.0'
+    implementation 'androidx.work:work-runtime:2.10.1'
+    // WorkManager's public Worker API exposes ListenableFuture at compile time.
+    implementation 'com.google.guava:guava:33.7.2-android'
+    implementation 'androidx.core:core:1.16.0'
+    implementation 'org.osmdroid:osmdroid-android:6.1.20'
 }

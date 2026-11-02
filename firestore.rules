@@ -1,0 +1,249 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verifiedMember() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    // The admin claim can only be set by a trusted Firebase Admin SDK environment.
+    // Never infer admin access from a client-editable profile field.
+    function isAdmin() {
+      return verifiedMember()
+        && request.auth.token.keys().hasAny(['admin'])
+        && request.auth.token.admin == true;
+    }
+
+    function owns(userId) {
+      return verifiedMember() && request.auth.uid == userId;
+    }
+
+    // A message and this member's throttle record must be written atomically.
+    // Binding the one permitted message ID also prevents a batch from creating
+    // multiple chat messages against a single rate-limit update.
+    function validMessageThrottle(messageId) {
+      let path = /databases/$(database)/documents/messageRateLimits/$(request.auth.uid);
+      return existsAfter(path)
+        && getAfter(path).data.lastMessageAt == request.time
+        && getAfter(path).data.lastMessageId == messageId
+        && (!exists(path)
+            || (get(path).data.lastMessageAt is timestamp
+                && request.time >= get(path).data.lastMessageAt + duration.value(5, 's')));
+    }
+
+    function validMosqueListing(data) {
+      return data.keys().hasOnly([
+          'name', 'city', 'province', 'address',
+          'latitude', 'longitude', 'updatedAt', 'updatedBy'
+        ])
+        && data.keys().hasAll([
+          'name', 'city', 'province', 'address',
+          'latitude', 'longitude', 'updatedAt', 'updatedBy'
+        ])
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 100
+        && data.city is string
+        && data.city.size() <= 100
+        && data.province is string
+        && data.province.size() <= 100
+        && data.address is string
+        && data.address.size() <= 200
+        && (data.latitude is int || data.latitude is float)
+        && data.latitude >= -90 && data.latitude <= 90
+        && (data.longitude is int || data.longitude is float)
+        && data.longitude >= -180 && data.longitude <= 180
+        && data.updatedAt == request.time
+        && data.updatedBy == request.auth.uid;
+    }
+
+    function validTimestamp(value) {
+      return value is int || value is string;
+    }
+
+    function validProfile(data) {
+      return data.keys().hasOnly(['displayName', 'location', 'bio', 'updatedAt'])
+        && data.keys().hasAll(['displayName', 'location', 'bio', 'updatedAt'])
+        && data.displayName is string
+        && data.displayName.size() > 0
+        && data.displayName.size() <= 60
+        && data.location is string
+        && data.location.size() <= 100
+        && data.bio is string
+        && data.bio.size() <= 180
+        && validTimestamp(data.updatedAt);
+    }
+
+    function validPrayerFlags(prayers) {
+      // Older web clients may save only changed prayer flags. Validate any
+      // supplied value while allowing default-valued keys to be omitted.
+      return prayers is map
+        && prayers.keys().hasOnly(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'])
+        && (!prayers.keys().hasAny(['Fajr']) || prayers.Fajr is bool)
+        && (!prayers.keys().hasAny(['Dhuhr']) || prayers.Dhuhr is bool)
+        && (!prayers.keys().hasAny(['Asr']) || prayers.Asr is bool)
+        && (!prayers.keys().hasAny(['Maghrib']) || prayers.Maghrib is bool)
+        && (!prayers.keys().hasAny(['Isha']) || prayers.Isha is bool);
+    }
+
+    function validAlarmSettings(settings) {
+      // Preferences are merged from the web client. Empty/partial documents
+      // must be accepted for compatibility; every provided field is bounded.
+      return settings is map
+        && settings.keys().hasOnly([
+          'prayers', 'tune', 'offset', 'suhoor', 'iftar',
+          'ramadanOnly', 'suhoorOffset'
+        ])
+        && (!settings.keys().hasAny(['prayers']) || validPrayerFlags(settings.prayers))
+        && (!settings.keys().hasAny(['tune']) || settings.tune in ['adhan', 'soft', 'beep'])
+        && (!settings.keys().hasAny(['offset'])
+            || ((settings.offset is int || settings.offset is float)
+                && settings.offset >= -60 && settings.offset <= 60))
+        && (!settings.keys().hasAny(['suhoor']) || settings.suhoor is bool)
+        && (!settings.keys().hasAny(['iftar']) || settings.iftar is bool)
+        && (!settings.keys().hasAny(['ramadanOnly']) || settings.ramadanOnly is bool)
+        && (!settings.keys().hasAny(['suhoorOffset'])
+            || ((settings.suhoorOffset is int || settings.suhoorOffset is float)
+                && settings.suhoorOffset >= 1 && settings.suhoorOffset <= 180));
+    }
+
+    // The mosque directory is public to read, but only verified admins can
+    // create/update records that pass the strict listing schema validator.
+    match /mosques/{mosqueId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && validMosqueListing(request.resource.data);
+      allow delete: if isAdmin();
+
+      // Authenticated members can read rooms only under a real directory entry.
+      // Messages are immutable; authors can delete only their own messages.
+      match /messages/{messageId} {
+        allow get, list: if verifiedMember()
+          && exists(/databases/$(database)/documents/mosques/$(mosqueId));
+        allow create: if verifiedMember()
+          && exists(/databases/$(database)/documents/mosques/$(mosqueId))
+          && request.resource.data.keys().hasOnly(['authorUid', 'authorName', 'text', 'createdAt'])
+          && request.resource.data.keys().hasAll(['authorUid', 'authorName', 'text', 'createdAt'])
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.authorName.size() > 0
+          && request.resource.data.authorName.size() <= 60
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time
+          && validMessageThrottle(messageId);
+        allow update: if false;
+        allow delete: if verifiedMember()
+          && (resource.data.authorUid == request.auth.uid || isAdmin());
+      }
+
+      // Reports are writable by verified members; only a verified server-assigned
+      // admin claim may list, read, or dismiss them in the native moderation queue.
+      match /reports/{reportId} {
+        allow get, list: if isAdmin();
+        allow create: if verifiedMember()
+          && request.resource.data.keys().hasOnly(['reporterUid', 'messageId', 'reason', 'createdAt'])
+          && request.resource.data.keys().hasAll(['reporterUid', 'messageId', 'reason', 'createdAt'])
+          && request.resource.data.reporterUid == request.auth.uid
+          && request.resource.data.messageId is string
+          && request.resource.data.messageId.size() > 0
+          && request.resource.data.messageId.size() <= 128
+          && request.resource.data.reason in ['Spam', 'Abuse or harassment', 'Misleading information', 'Other']
+          && exists(/databases/$(database)/documents/mosques/$(mosqueId)/messages/$(request.resource.data.messageId))
+          && get(/databases/$(database)/documents/mosques/$(mosqueId)/messages/$(request.resource.data.messageId)).data.authorUid != request.auth.uid
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Administrators publish announcements and reminders. Members may read
+    // them, but only a server-assigned admin claim can create, edit, or remove
+    // records. Clients never assign roles or impersonate the sender.
+    match /announcements/{announcementId} {
+      allow get, list: if verifiedMember();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'title', 'body', 'audience', 'mosqueId', 'createdAt', 'createdBy'
+        ])
+        && request.resource.data.keys().hasAll([
+          'title', 'body', 'audience', 'createdAt', 'createdBy'
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.body is string
+        && request.resource.data.body.size() > 0
+        && request.resource.data.body.size() <= 2000
+        && request.resource.data.audience in ['all', 'community']
+        && (!request.resource.data.keys().hasAny(['mosqueId'])
+            || (request.resource.data.mosqueId is string
+                && request.resource.data.mosqueId.size() <= 128))
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // A user can update only their own server-timestamped chat throttle record.
+    // A valid chat message must reference the matching record via getAfter().
+    match /messageRateLimits/{userId} {
+      allow get: if owns(userId);
+      allow list: if false;
+      allow create: if owns(userId)
+        && request.resource.data.keys().hasOnly(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.keys().hasAll(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.lastMessageId is string
+        && request.resource.data.lastMessageId.size() > 0
+        && request.resource.data.lastMessageId.size() <= 128;
+      allow update: if owns(userId)
+        && resource.data.keys().hasOnly(['lastMessageAt', 'lastMessageId'])
+        && resource.data.keys().hasAll(['lastMessageAt', 'lastMessageId'])
+        && resource.data.lastMessageAt is timestamp
+        && request.time >= resource.data.lastMessageAt + duration.value(5, 's')
+        && request.resource.data.keys().hasOnly(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.keys().hasAll(['lastMessageAt', 'lastMessageId'])
+        && request.resource.data.lastMessageAt == request.time
+        && request.resource.data.lastMessageId is string
+        && request.resource.data.lastMessageId.size() > 0
+        && request.resource.data.lastMessageId.size() <= 128;
+      allow delete: if false;
+    }
+
+    // Each member can access and update only their own profile document.
+    match /users/{userId} {
+      allow get: if owns(userId);
+      allow list: if false;
+      allow create, update: if owns(userId) && validProfile(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Prayer/alarm preferences may be read and written by their owner only.
+    match /userSettings/{userId} {
+      allow get: if owns(userId);
+      allow list: if false;
+      allow create, update: if owns(userId)
+        && request.resource.data.keys().hasOnly(['alarmSettings', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['alarmSettings', 'updatedAt'])
+        && validTimestamp(request.resource.data.updatedAt)
+        && validAlarmSettings(request.resource.data.alarmSettings);
+      allow delete: if false;
+    }
+
+    // Collection-group queries must be authorized by a recursive match as well.
+    // Only a verified server-assigned admin claim may read or delete reports,
+    // regardless of the parent document path.
+    match /{parentPath=**}/reports/{reportId} {
+      allow get, list: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Deny every collection not deliberately exposed above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

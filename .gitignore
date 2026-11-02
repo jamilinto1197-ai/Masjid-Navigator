@@ -7,7 +7,7 @@ android/app/build/tmp/
 *.keystore
 .env
 
-# Generated Android build artifacts and local Firebase configuration
+# Build artifacts and local Firebase configuration
 /android/app/build/
 /android/app/google-services.json
 /downloads/*.apk

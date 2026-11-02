@@ -1,53 +1,274 @@
-name: Android debug APK build
+name: Android security gate
 
 on:
-  workflow_dispatch:
   push:
+    branches: ["**"]
     paths:
-      - 'android/**'
-      - 'www/**'
-      - 'capacitor.config.json'
-      - '.github/workflows/android-debug.yml'
+      - "android/**"
+      - "scripts/**"
+      - "tests/**"
+      - "firebase.json"
+      - ".github/workflows/**"
+      - "README.md"
+      - "package.json"
+      - "firestore.rules"
+  pull_request:
+    paths:
+      - "android/**"
+      - "scripts/**"
+      - ".github/workflows/**"
+      - "README.md"
+      - "package.json"
+      - "firestore.rules"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
 
 permissions:
   contents: read
 
+concurrency:
+  group: android-security-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-debug-apk:
-    name: Build and package native Android debug APK
+  android-security:
+    name: Static analysis, dependency audit, and APK checks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Job-level env supports both Actions Variables and Secrets contexts.
+    env:
+      # Prefer the renamed repository Actions variables/secrets; keep the previous
+      # underscored names as fallbacks during migration.
+      FIREBASEANDROIDAPPID: ${{ vars.FIREBASEANDROIDAPPID || secrets.FIREBASEANDROIDAPPID || vars.FIREBASE_ANDROID_APP_ID || secrets.FIREBASE_ANDROID_APP_ID }}
+      FIREBASEWEBCLIENTID: ${{ vars.FIREBASEWEBCLIENTID || secrets.FIREBASEWEBCLIENTID || vars.FIREBASE_WEB_CLIENT_ID || secrets.FIREBASE_WEB_CLIENT_ID }}
+      FIREBASE_ANDROID_APP_ID: ${{ vars.FIREBASEANDROIDAPPID || secrets.FIREBASEANDROIDAPPID || vars.FIREBASE_ANDROID_APP_ID || secrets.FIREBASE_ANDROID_APP_ID }}
+      FIREBASE_WEB_CLIENT_ID: ${{ vars.FIREBASEWEBCLIENTID || secrets.FIREBASEWEBCLIENTID || vars.FIREBASE_WEB_CLIENT_ID || secrets.FIREBASE_WEB_CLIENT_ID }}
+    timeout-minutes: 40
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "21"
+
       - name: Install Android SDK packages
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@0f4528296b4bc09e8ae0fc7be30185a4ab435545 # v6.0.0
         with:
-          gradle-version: '8.7'
-      - name: Build debug APK
-        run: gradle --no-daemon --console=plain --stacktrace -p android :app:clean :app:assembleDebug
-      - name: Verify APK signature and package identity
+          gradle-version: "8.11.1"
+
+      - name: Set up Python for MobSF source scan
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node for Firestore rules validation
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      - name: Install pinned MobSF scanner
+        run: python -m pip install --disable-pip-version-check "mobsfscan==1.0.1"
+
+      - name: Scan first-party Android source
+        id: mobsfscan
+        continue-on-error: true
         run: |
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          test -s "$APK"
-          "$APKSIGNER" verify --print-certs "$APK"
-          "$AAPT" dump badging "$APK" | grep -F "package: name='com.masjidph.navigator'"
-          sha256sum "$APK"
-      - name: Upload installable debug APK
-        uses: actions/upload-artifact@v4
+          mkdir -p build/reports/security
+          mobsfscan --type android --json -o build/reports/security/mobsfscan.json \
+            android/app/src/main/java \
+            android/app/src/main/AndroidManifest.xml \
+            android/app/src/main/res
+
+      - name: Check standalone web/PWA source
+        id: web_check
+        continue-on-error: true
+        run: npm run check
+
+      - name: Install pinned Firebase CLI
+        run: npm install --global firebase-tools@15.34.1
+
+      - name: Install pinned Firestore rules test dependencies
+        run: npm install --prefix /tmp/firestore-tests --no-save --package-lock=false firebase@12.19.0 @firebase/rules-unit-testing@5.0.2
+
+      - name: Prepare Firestore rules test
+        run: cp tests/firestore-rules.test.mjs /tmp/firestore-tests/firestore-rules.test.mjs
+
+      - name: Compile Firestore rules and run authorization tests
+        id: firestore_rules
+        continue-on-error: true
+        run: firebase emulators:exec --project demo-masjidph --only firestore "node /tmp/firestore-tests/firestore-rules.test.mjs"
+
+      - name: Set up Go for OSV-Scanner
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.x"
+
+      - name: Install pinned OSV-Scanner
+        run: |
+          # Retry transient checksum/database transport failures without disabling Go's module verification.
+          for attempt in 1 2 3; do
+            if go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2.7.0; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "OSV-Scanner install failed on attempt $attempt; retrying in 5 seconds."
+              sleep 5
+            fi
+          done
+          exit 1
+
+      - name: Build, lint, and resolve all Android dependencies
+        id: android_build
+        continue-on-error: true
+        env:
+          ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+          ANDROID_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEYSTORE_PASSWORD }}
+          ANDROID_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_DEBUG_KEY_ALIAS }}
+          ANDROID_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_DEBUG_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${ANDROID_DEBUG_KEYSTORE_BASE64:?Set the ANDROID_DEBUG_KEYSTORE_BASE64 Actions secret to a persistent debug keystore}"
+          : "${ANDROID_DEBUG_KEYSTORE_PASSWORD:?Set the ANDROID_DEBUG_KEYSTORE_PASSWORD Actions secret}"
+          : "${ANDROID_DEBUG_KEY_ALIAS:?Set the ANDROID_DEBUG_KEY_ALIAS Actions secret}"
+          : "${ANDROID_DEBUG_KEY_PASSWORD:?Set the ANDROID_DEBUG_KEY_PASSWORD Actions secret}"
+          keystore_path="$RUNNER_TEMP/masjid-navigator-debug.keystore"
+          # Accept the raw Base64 value, whitespace copied by a shell, or an
+          # accidentally pasted NAME=value line from the setup instructions.
+          keystore_base64="${ANDROID_DEBUG_KEYSTORE_BASE64#ANDROID_DEBUG_KEYSTORE_BASE64=}"
+          keystore_password="${ANDROID_DEBUG_KEYSTORE_PASSWORD#ANDROID_DEBUG_KEYSTORE_PASSWORD=}"
+          key_password="${ANDROID_DEBUG_KEY_PASSWORD#ANDROID_DEBUG_KEY_PASSWORD=}"
+          printf '%s' "$keystore_base64" | tr -d '[:space:]' | base64 --decode > "$keystore_path"
+          chmod 600 "$keystore_path"
+          key_alias="$(keytool -list -v -storetype PKCS12 -keystore "$keystore_path" -storepass "$keystore_password" | awk -F': ' '/Alias name:/{print $2; exit}')"
+          test -n "$key_alias"
+          export ANDROID_DEBUG_KEYSTORE_PATH="$keystore_path"
+          export ANDROID_DEBUG_KEYSTORE_PASSWORD="$keystore_password"
+          export ANDROID_DEBUG_KEY_ALIAS="$key_alias"
+          export ANDROID_DEBUG_KEY_PASSWORD="$key_password"
+          echo "ANDROID_DEBUG_KEYSTORE_PATH=$keystore_path" >> "$GITHUB_ENV"
+          gradle --no-daemon --write-locks -p android \
+            :app:clean \
+            :app:resolveAllDependenciesForSecurity \
+            :app:testDebugUnitTest \
+            :app:lintDebug \
+            :app:assembleDebug \
+            --stacktrace --console=plain
+
+      - name: Verify resolved dependency graph baseline
+        id: lock_check
+        if: always()
+        continue-on-error: true
+        run: |
+          test -s android/app/gradle.lockfile || {
+            echo "::error::No resolved Gradle lockfile was generated; dependency audit cannot be considered complete."
+            exit 1
+          }
+          test -s android/app/gradle.lockfile.sha256 || {
+            echo "::error::No reviewed dependency-graph checksum is checked in."
+            exit 1
+          }
+          (
+            cd android/app
+            sha256sum --check gradle.lockfile.sha256
+          ) || {
+            echo "::error::Resolved Android dependencies differ from the reviewed baseline. Inspect the generated lock file, review the new graph, run OSV-Scanner, and update the baseline deliberately."
+            exit 1
+          }
+
+      - name: Scan locked dependencies for known vulnerabilities
+        id: osv_scan
+        if: always()
+        continue-on-error: true
+        run: |
+          if [[ -s android/app/gradle.lockfile ]]; then
+            "$(go env GOPATH)/bin/osv-scanner" scan source -r .
+          else
+            echo "::error::Skipping OSV audit because no Gradle lockfile exists."
+            exit 1
+          fi
+
+      - name: Inspect compiled APK permissions, signature, and contents
+        id: apk_check
+        if: always()
+        continue-on-error: true
+        run: bash scripts/check-apk-security.sh
+
+      - name: Require a real Firebase Android configuration
+        id: firebase_check
+        if: always()
+        continue-on-error: true
+        run: gradle --no-daemon -p android :app:checkFirebaseAndroidConfig --console=plain
+
+      - name: Enforce security gate results
+        if: always()
+        env:
+          SOURCE_SCAN: ${{ steps.mobsfscan.outcome }}
+          WEB_SCAN: ${{ steps.web_check.outcome }}
+          BUILD_SCAN: ${{ steps.android_build.outcome }}
+          LOCK_SCAN: ${{ steps.lock_check.outcome }}
+          OSV_SCAN: ${{ steps.osv_scan.outcome }}
+          APK_SCAN: ${{ steps.apk_check.outcome }}
+          FIREBASE_SCAN: ${{ steps.firebase_check.outcome }}
+          RULES_SCAN: ${{ steps.firestore_rules.outcome }}
+        run: |
+          failed=0
+          for item in "MobSF source scan:$SOURCE_SCAN" "Standalone web/PWA check:$WEB_SCAN" "Android build/lint:$BUILD_SCAN" "Dependency graph baseline:$LOCK_SCAN" "OSV dependency audit:$OSV_SCAN" "APK inspection:$APK_SCAN" "Firebase Android configuration:$FIREBASE_SCAN" "Firestore rules compilation:$RULES_SCAN"; do
+            name="${item%%:*}"
+            result="${item#*:}"
+            printf '%s => %s\n' "$name" "$result"
+            if [[ "$result" != "success" ]]; then failed=1; fi
+          done
+          if [[ "$failed" -ne 0 ]]; then
+            echo "::error::Security gate failed. No APK is being published."
+            exit 1
+          fi
+
+      - name: Generate APK checksum
+        if: success()
+        run: sha256sum android/app/build/outputs/apk/debug/app-debug.apk > android/app/build/outputs/apk/debug/app-debug.apk.sha256
+
+      - name: Upload fresh debug APK for device testing
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: masjidph-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/app-debug.apk.sha256
           if-no-files-found: error
           retention-days: 7
+
+      - name: Publish debug APK to GitHub Releases
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v2.1.2-build${GITHUB_RUN_NUMBER}"
+          apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          checksum="android/app/build/outputs/apk/debug/app-debug.apk.sha256"
+          cp "$apk" "Masjid-Navigator-${tag}.apk"
+          gh release create "$tag" "Masjid-Navigator-${tag}.apk" "$checksum" \
+            --target "$GITHUB_SHA" \
+            --title "Masjid Navigator ${tag}" \
+            --notes "Automated signed debug build for device testing. SHA-256 is provided with the APK."
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-security-reports
+          path: |
+            build/reports/security/**
+            android/app/gradle.lockfile
+            android/app/build/reports/lint-results-debug.html
+          if-no-files-found: warn
+          retention-days: 14

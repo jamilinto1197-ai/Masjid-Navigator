@@ -1,193 +1,2003 @@
 package com.masjidph.navigator;
 
+import android.Manifest;
 import android.app.Activity;
-import android.os.Bundle;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.hardware.GeomagneticField;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
-import android.content.Context;
-import android.widget.*;
-import com.google.firebase.FirebaseApp;
-import com.google.firebase.FirebaseOptions;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.GoogleAuthProvider;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
+import android.text.InputType;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import org.osmdroid.config.Configuration;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
+import org.osmdroid.util.GeoPoint;
+import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Marker;
+import android.text.InputFilter;
+
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.UserInfo;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.Query;
+
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
-  private final int green=Color.rgb(6,78,59), teal=Color.rgb(15,118,110), pale=Color.rgb(226,247,235), ink=Color.rgb(28,48,39), muted=Color.rgb(103,122,112), bg=Color.rgb(245,249,246);
-  private LinearLayout root, header, body, nav;
-  private TextView headerSubtitle;
-  private FirebaseAuth auth;
-  private FirebaseFirestore db;
-  private String tab="home";
-  private boolean firebaseReady=false;
-  private EditText emailInput,passwordInput,nameInput,locationInput,bioInput;
-  private TextView status;
-  private static final int GOOGLE_SIGN_IN_REQUEST = 9001;
-  // This must be the OAuth 2.0 Web application client ID from the same Firebase/Google Cloud project.
-  private static final String WEB_CLIENT_ID = "885467340998-0bl7chvlvfpdbn342tcu0ncjifa1d8ue.apps.googleusercontent.com";
-  private GoogleSignInClient googleSignInClient;
+    private static final String TAG = "MasjidPHNavigator";
+    private static final int GOOGLE_SIGN_IN_REQUEST = 9001;
+    private final int green = Color.rgb(6, 78, 59);
+    private final int teal = Color.rgb(15, 118, 110);
+    private final int pale = Color.rgb(226, 247, 235);
+    private final int ink = Color.rgb(28, 48, 39);
+    private final int muted = Color.rgb(103, 122, 112);
+    private final int bg = Color.rgb(245, 249, 246);
 
-  @Override public void onCreate(Bundle saved) {
-    super.onCreate(saved);
-    getWindow().setStatusBarColor(green); getWindow().setNavigationBarColor(Color.WHITE);
-    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-    initFirebase();
-    showRoot();
-    if(auth!=null) auth.addAuthStateListener(a->{ if(a.getCurrentUser()!=null) showApp(); else showLogin(); });
-    else showLogin();
-  }
-  private void initFirebase(){
-    try {
-      if(FirebaseApp.getApps(this).isEmpty()){
-        FirebaseOptions options=new FirebaseOptions.Builder()
-          .setApiKey("AIzaSyBuNwIsbjxmyBM6pdzR4HVmFjAhViGIsgk")
-          .setApplicationId("1:885467340998:android:masjidphnavigator")
-          .setProjectId("masjid-109f3")
-          .setGcmSenderId("885467340998")
-          .setStorageBucket("masjid-109f3.firebasestorage.app").build();
-        FirebaseApp.initializeApp(this,options);
-      }
-      auth=FirebaseAuth.getInstance(); db=FirebaseFirestore.getInstance(); firebaseReady=true;
-    } catch(Exception e){ firebaseReady=false; }
-  }
-  private void showRoot(){
-    root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(bg);
-    header=new LinearLayout(this);header.setOrientation(LinearLayout.VERTICAL);header.setPadding(dp(20),dp(16),dp(20),dp(16));header.setBackgroundColor(green);
-    TextView brand=text("🕌  MasjidPH Navigator",22,Color.WHITE,true);header.addView(brand);
-    headerSubtitle=text("Find your masjid. Connect with your community.",13,Color.rgb(218,241,231),false);
-    LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,-2);hp.topMargin=dp(4);header.addView(headerSubtitle,hp);
-    root.addView(header,new LinearLayout.LayoutParams(-1,-2));
-    body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(16),dp(16),dp(16),dp(16));
-    ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(body);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-    setContentView(root);
-  }
-  private void showLogin(){
-    if(root==null)showRoot(); body.removeAllViews(); if(nav!=null){root.removeView(nav);nav=null;}
-    headerSubtitle.setText("Your Philippine Muslim community");
-    LinearLayout hero=card();hero.setBackground(round(green,22));hero.addView(text("Assalamu Alaikum",25,Color.WHITE,true));hero.addView(gap(8));
-    hero.addView(text("Discover masjids, follow local communities, and stay connected.",15,Color.rgb(226,247,235),false));body.addView(hero);
-    body.addView(gap(12));LinearLayout form=card();form.addView(text("Welcome back",22,ink,true));form.addView(text("Sign in or create your community account.",14,muted,false));
-    emailInput=input("Email address",false);form.addView(emailInput);passwordInput=input("Password",true);form.addView(passwordInput);
-    Button sign=button("Sign in");form.addView(sign);sign.setOnClickListener(v->authenticate(false));
-    Button create=button("Create account");create.setBackground(round(pale,14));create.setTextColor(green);form.addView(create);create.setOnClickListener(v->authenticate(true));
-    Button google=button("Continue with Google");google.setBackground(round(Color.WHITE,14));google.setTextColor(green);form.addView(google);google.setOnClickListener(v->startGoogleSignIn());
-    Button reset=button("Forgot password?");reset.setBackgroundColor(Color.TRANSPARENT);reset.setTextColor(teal);form.addView(reset);reset.setOnClickListener(v->resetPassword());
-    status=text("",13,Color.rgb(170,45,45),false);form.addView(status);body.addView(form);
-    body.addView(gap(12));body.addView(text("By continuing, you agree to follow each masjid community's rules. Be respectful and protect your personal information.",12,muted,false));
-  }
+    private LinearLayout root, header, body, nav, mosqueResults;
+    private TextView headerSubtitle, status, mosqueStatus, prayerStatus, prayerTimes, qiblaStatus, qiblaHeading, prayerReminderStatus;
+    private CheckBox prayerReminderToggle;
+    private EditText emailInput, passwordInput, nameInput, locationInput, bioInput, mosqueSearch;
+    private Button mosqueLocateButton;
+    private Spinner communitySpinner;
+    private TextView communityStatus;
+    private LinearLayout communityMessageList;
+    private EditText communityMessageInput;
+    private ListenerRegistration communityListener;
+    private String activeCommunityId = "";
+    private final List<MosqueItem> communityMosques = new ArrayList<>();
+    private FirebaseAuth auth;
+    private FirebaseAuth.AuthStateListener authStateListener;
+    private GoogleSignInClient googleSignInClient;
+    private FirebaseFirestore db;
+    private String tab = "home";
+    private boolean firebaseReady = false;
+    private String firebaseConfigError = "Firebase Android setup is incomplete. Configure the real Android app ID before signing in.";
+    private boolean mosqueLoadRequested = false;
 
-  private void startGoogleSignIn(){
-    if(!firebaseReady || auth==null){ message("Firebase is unavailable. Check your connection and Firebase configuration."); return; }
-    try {
-      if(googleSignInClient==null){
-        GoogleSignInOptions options=new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-          .requestIdToken(WEB_CLIENT_ID)
-          .requestEmail()
-          .build();
-        googleSignInClient=GoogleSignIn.getClient(this,options);
-      }
-      if(status!=null) status.setText("Opening Google sign-in…");
-      startActivityForResult(googleSignInClient.getSignInIntent(),GOOGLE_SIGN_IN_REQUEST);
-    } catch(Exception e){ message("Could not start Google sign-in: "+authMessage(e)); }
-  }
+    private final ExecutorService ioExecutor = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private LocationManager locationManager;
+    private Location activeLocation;
+    private LocationListener activeLocationListener;
+    private LocationResult activeLocationCallback;
+    private LocationResult pendingLocationCallback;
+    private Runnable locationTimeout;
+    private boolean locationRequestCompleted = true;
 
-  @Override protected void onActivityResult(int requestCode,int resultCode,android.content.Intent data){
-    super.onActivityResult(requestCode,resultCode,data);
-    if(requestCode!=GOOGLE_SIGN_IN_REQUEST)return;
-    if(data==null){ message("Google sign-in returned no result data (result code "+resultCode+"). Try again, or use email sign-in."); return; }
-    try {
-      Task<GoogleSignInAccount> task=GoogleSignIn.getSignedInAccountFromIntent(data);
-      GoogleSignInAccount account=task.getResult(ApiException.class);
-      if(account==null || account.getIdToken()==null || account.getIdToken().isEmpty()){
-        message("Google did not return an ID token. Verify the Web OAuth client ID and Android signing fingerprints."); return;
-      }
-      if(status!=null)status.setText("Signing in with Firebase…");
-      AuthCredential credential=GoogleAuthProvider.getCredential(account.getIdToken(),null);
-      auth.signInWithCredential(credential).addOnCompleteListener(this,t->{
-        if(t.isSuccessful()){
-          status=null;
-          showApp();
-        } else {
-          Exception e=t.getException();
-          message("Firebase Google sign-in failed: "+authMessage(e));
-        }
-      });
-    } catch(ApiException e){
-      String detail="Google sign-in failed (status "+e.getStatusCode()+"): "+(e.getMessage()==null?"No details":e.getMessage());
-      message(detail+" Verify the Android OAuth client package/SHA-1 and the Web client ID.");
-    } catch(Exception e){ message("Google sign-in failed: "+authMessage(e)); }
-  }
+    private SensorManager sensorManager;
+    private Sensor compassSensor;
+    private CompassDial compassDial;
+    private boolean qiblaBearingReady = false;
+    private double qiblaBearing = 0.0;
+    private double trueHeading = 0.0;
 
-  private void authenticate(boolean create){
-    if(!firebaseReady){message("Firebase could not initialize. Check the Android Firebase configuration and internet connection.");return;}
-    String email=emailInput.getText().toString().trim(), pass=passwordInput.getText().toString();
-    if(email.isEmpty()||pass.length()<6){message("Enter a valid email and a password with at least 6 characters.");return;}
-    status.setText(create?"Creating your account…":"Signing in…");
-    if(create)auth.createUserWithEmailAndPassword(email,pass).addOnCompleteListener(this,t->{if(t.isSuccessful()){FirebaseUser u=auth.getCurrentUser();if(u!=null)u.sendEmailVerification();}else message(authMessage(t.getException()));});
-    else auth.signInWithEmailAndPassword(email,pass).addOnCompleteListener(this,t->{if(!t.isSuccessful())message(authMessage(t.getException()));});
-  }
-  private void resetPassword(){String email=emailInput.getText().toString().trim();if(email.isEmpty()){message("Enter your email first.");return;}if(auth==null){message("Firebase is unavailable.");return;}auth.sendPasswordResetEmail(email).addOnCompleteListener(this,t->message(t.isSuccessful()?"Password reset email sent.":authMessage(t.getException())));}
-  private void showApp(){
-    if(root==null)showRoot(); if(nav!=null)root.removeView(nav);nav=null;
-    headerSubtitle.setText("Your masjid and salah companion"); renderTab(tab); buildNav();
-  }
-  private void buildNav(){
-    nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(Color.WHITE);nav.setElevation(dp(12));
-    String[] labels={"Home","Explore","Community","Qibla","Profile"};String[] ids={"home","explore","community","qibla","profile"};String[] icons={"⌂","⌕","◎","◉","♙"};
-    for(int i=0;i<labels.length;i++){final String id=ids[i];LinearLayout item=new LinearLayout(this);item.setOrientation(LinearLayout.VERTICAL);item.setGravity(Gravity.CENTER);item.setPadding(dp(2),dp(4),dp(2),dp(4));item.setBackground(round(tab.equals(id)?pale:Color.WHITE,14));TextView ic=text(icons[i],20,green,true);ic.setGravity(Gravity.CENTER);TextView label=text(labels[i],10,tab.equals(id)?green:muted,true);label.setGravity(Gravity.CENTER);item.addView(ic);item.addView(label);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(58),1);p.setMargins(dp(2),dp(4),dp(2),dp(4));nav.addView(item,p);item.setOnClickListener(v->{tab=id;renderTab(id);buildNav();});}
-    root.addView(nav,new LinearLayout.LayoutParams(-1,dp(66)));
-  }
-  private void renderTab(String which){
-    if(body==null)return;body.removeAllViews();tab=which;
-    switch(which){
-      case "home": headerSubtitle.setText("Your masjid and salah companion");home();break;
-      case "explore": headerSubtitle.setText("Discover masjids near you");explore();break;
-      case "community": headerSubtitle.setText("Conversations rooted in your local masjid");community();break;
-      case "qibla": headerSubtitle.setText("Find the direction to Makkah");qibla();break;
-      case "profile": headerSubtitle.setText("Your community identity");profile();break;
+    private interface LocationResult {
+        void onSuccess(Location location);
+        void onError(String message);
     }
-  }
-  private void home(){
-    body.addView(text("Assalamu Alaikum 👋",25,ink,true));body.addView(text("A calmer way to stay connected to your local Muslim community.",14,muted,false));body.addView(gap(14));
-    LinearLayout c=card();c.setBackground(round(green,20));c.addView(text("TODAY'S PRAYER TIMES",12,Color.rgb(205,238,222),true));c.addView(gap(8));c.addView(text("Prayer times coming soon",20,Color.WHITE,true));c.addView(text("We’ll connect reliable location-based calculations and local masjid timetables in the next native feature pass.",13,Color.rgb(226,247,235),false));body.addView(c);
-    body.addView(gap(12));LinearLayout shortcuts=card();shortcuts.addView(text("Your community",20,ink,true));shortcuts.addView(text("Find a masjid, then join the conversation for that location.",14,muted,false));Button b=button("Explore masjids");shortcuts.addView(b);b.setOnClickListener(v->{tab="explore";renderTab(tab);buildNav();});body.addView(shortcuts);
-  }
-  private void explore(){
-    body.addView(text("Find a masjid",24,ink,true));body.addView(text("Search the directory. Listings shown here are starter data until verified local records are connected.",13,muted,false));EditText search=input("Search name, city, or province",false);body.addView(search);
-    LinearLayout list=card();list.addView(text("Mosque directory",19,ink,true));TextView loading=text("Loading verified masjids…",14,muted,false);list.addView(loading);body.addView(list);
-    if(db!=null)db.collection("mosques").limit(100).get().addOnSuccessListener(s->{list.removeAllViews();list.addView(text("Mosque directory · "+s.size()+" listings",19,ink,true));if(s.isEmpty())list.addView(text("No verified listings have been published yet. Search and map data will appear here once records are added.",14,muted,false));for(QueryDocumentSnapshot d:s){String name=d.getString("name");if(name==null)name=d.getString("mosqueName");if(name==null)name="Masjid";String city=d.getString("city");if(city==null)city=d.getString("addressCity");String province=d.getString("province");if(province==null)province=d.getString("region");String hay=(name+" "+(city==null?"":city)+" "+(province==null?"":province)).toLowerCase(Locale.ROOT);if(!search.getText().toString().trim().isEmpty()&&!hay.contains(search.getText().toString().trim().toLowerCase(Locale.ROOT)))continue;LinearLayout row=card();row.addView(text("🕌  "+name,17,ink,true));row.addView(text(((city==null)?"":city)+((province==null)?"":", "+province),13,muted,false));body.addView(row);}}).addOnFailureListener(e->loading.setText("Could not load mosque listings. Check your connection."));
-    search.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){}public void onTextChanged(CharSequence s,int start,int before,int count){if(db!=null)db.collection("mosques").limit(100).get().addOnSuccessListener(snap->{list.removeAllViews();list.addView(text("Mosque directory · "+snap.size()+" listings",19,ink,true));String q=s.toString().toLowerCase(Locale.ROOT);for(QueryDocumentSnapshot d:snap){String n=d.getString("name");if(n==null)n=d.getString("mosqueName");if(n==null)n="Masjid";String city=d.getString("city");String hay=(n+" "+(city==null?"":city)).toLowerCase(Locale.ROOT);if(!q.isEmpty()&&!hay.contains(q))continue;list.addView(text("🕌  "+n,16,ink,true));}});}public void afterTextChanged(android.text.Editable e){}});
-  }
-  private void community(){LinearLayout c=card();c.setBackground(round(green,20));c.addView(text("Every masjid can have its own community",22,Color.WHITE,true));c.addView(gap(8));c.addView(text("Local announcements, member conversations, and mosque-specific chat belong together—not in one giant group.",14,Color.rgb(226,247,235),false));body.addView(c);body.addView(gap(12));LinearLayout note=card();note.addView(text("Community chat is not enabled yet",19,ink,true));note.addView(text("We’re laying the native app foundation first. Next we’ll connect mosque membership, live messages, reporting, and secure Firestore rules.",14,muted,false));Button b=button("Find a masjid");note.addView(b);b.setOnClickListener(v->{tab="explore";renderTab(tab);buildNav();});body.addView(note);}
-  private void qibla(){LinearLayout c=card();c.addView(text("Qibla direction",24,ink,true));c.addView(text("The Qibla compass is not yet connected in this native migration. It will use your device location and sensors with a clear permission prompt.",14,muted,false));Button b=button("Location permission");c.addView(b);b.setOnClickListener(v->{if(android.os.Build.VERSION.SDK_INT>=23)requestPermissions(new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION,android.Manifest.permission.ACCESS_COARSE_LOCATION},1001);});body.addView(c);}
-  private void profile(){
-    FirebaseUser u=auth==null?null:auth.getCurrentUser();LinearLayout c=card();c.addView(text("Your profile",23,ink,true));c.addView(text(u==null?"Signed-in member":(u.getEmail()==null?"Signed-in member":u.getEmail()),13,muted,false));
-    nameInput=input("Display name",false);locationInput=input("City / province (optional)",false);bioInput=input("Short bio (optional)",false);c.addView(nameInput);c.addView(locationInput);c.addView(bioInput);
-    if(u!=null&&db!=null)db.collection("users").document(u.getUid()).get().addOnSuccessListener(s->{if(s.exists()){nameInput.setText(s.getString("displayName")==null?"":s.getString("displayName"));locationInput.setText(s.getString("location")==null?"":s.getString("location"));bioInput.setText(s.getString("bio")==null?"":s.getString("bio"));}});
-    Button save=button("Save profile");c.addView(save);TextView st=text("",13,muted,false);c.addView(st);save.setOnClickListener(v->{if(u==null||db==null){st.setText("Sign in to save your profile.");return;}String n=nameInput.getText().toString().trim();if(n.isEmpty()){st.setText("Enter a display name.");return;}java.util.Map<String,Object> p=new java.util.HashMap<>();p.put("displayName",n);p.put("location",locationInput.getText().toString().trim());p.put("bio",bioInput.getText().toString().trim());p.put("updatedAt",System.currentTimeMillis());db.collection("users").document(u.getUid()).set(p,com.google.firebase.firestore.SetOptions.merge()).addOnSuccessListener(x->st.setText("Profile saved.")).addOnFailureListener(e->st.setText("Couldn't save profile. Check Firestore rules."));});body.addView(c);
-    body.addView(gap(12));Button out=button("Sign out");out.setBackground(round(Color.WHITE,14));out.setTextColor(green);body.addView(out);out.setOnClickListener(v->{if(auth!=null)auth.signOut();});
-  }
-  private LinearLayout card(){LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(16),dp(16),dp(16),dp(16));c.setBackground(round(Color.WHITE,18));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(10);c.setLayoutParams(p);return c;}
-  private EditText input(String hint,boolean password){EditText e=new EditText(this);e.setSingleLine(!hint.contains("bio"));e.setHint(hint);e.setTextSize(15);e.setPadding(dp(12),dp(10),dp(12),dp(10));e.setBackground(round(bg,12));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(10);e.setLayoutParams(p);if(password)e.setInputType(129);else if(hint.toLowerCase(Locale.ROOT).contains("email"))e.setInputType(33);return e;}
-  private Button button(String label){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(15);b.setTextColor(Color.WHITE);b.setBackground(round(teal,14));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(8);b.setLayoutParams(p);return b;}
-  private TextView text(String s,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);t.setGravity(Gravity.START);return t;}
-  private View gap(int h){View v=new View(this);v.setLayoutParams(new LinearLayout.LayoutParams(1,dp(h)));return v;}
-  private GradientDrawable round(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
-  private int dp(int v){return (int)(v*getResources().getDisplayMetrics().density+.5f);}
-  private void message(String s){if(status!=null)status.setText(s);else new android.app.AlertDialog.Builder(this).setMessage(s).setPositiveButton("OK",null).show();}
-  private String authMessage(Exception e){return e==null?"Something went wrong.":(e.getMessage()==null?"Authentication failed.":e.getMessage());}
+
+    private static final class MosqueItem {
+        final String documentId;
+        final String name;
+        final String city;
+        final String province;
+        final double latitude;
+        final double longitude;
+        final boolean starter;
+
+        MosqueItem(String name, String city, String province, double latitude, double longitude, boolean starter) {
+            this("", name, city, province, latitude, longitude, starter);
+        }
+
+        MosqueItem(String documentId, String name, String city, String province, double latitude, double longitude, boolean starter) {
+            this.documentId = documentId == null ? "" : documentId;
+            this.name = name == null || name.trim().isEmpty() ? "Masjid" : name.trim();
+            this.city = city == null ? "" : city.trim();
+            this.province = province == null ? "" : province.trim();
+            this.latitude = latitude;
+            this.longitude = longitude;
+            this.starter = starter;
+        }
+
+        boolean hasCoordinates() {
+            return Double.isFinite(latitude) && Double.isFinite(longitude)
+                    && latitude >= -90 && latitude <= 90
+                    && longitude >= -180 && longitude <= 180;
+        }
+    }
+
+    private final List<MosqueItem> mosqueItems = new ArrayList<>();
+
+    private final SensorEventListener compassListener = new SensorEventListener() {
+        @Override public void onSensorChanged(SensorEvent event) {
+            if (!qiblaBearingReady || compassDial == null) return;
+            double magneticHeading;
+            if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+                float[] rotation = new float[9];
+                float[] orientation = new float[3];
+                SensorManager.getRotationMatrixFromVector(rotation, event.values);
+                SensorManager.getOrientation(rotation, orientation);
+                magneticHeading = normalizeDegrees(Math.toDegrees(orientation[0]));
+            } else if (event.sensor.getType() == Sensor.TYPE_ORIENTATION) {
+                magneticHeading = normalizeDegrees(event.values[0]);
+            } else {
+                return;
+            }
+
+            trueHeading = magneticHeading;
+            if (activeLocation != null) {
+                GeomagneticField field = new GeomagneticField(
+                        (float) activeLocation.getLatitude(),
+                        (float) activeLocation.getLongitude(),
+                        (float) activeLocation.getAltitude(),
+                        System.currentTimeMillis());
+                trueHeading = normalizeDegrees(magneticHeading + field.getDeclination());
+            }
+            double relative = normalizeDegrees(qiblaBearing - trueHeading);
+            compassDial.setOrientation((float) trueHeading, (float) relative);
+            if (qiblaHeading != null) {
+                qiblaHeading.setText(String.format(Locale.getDefault(),
+                        "Compass heading: %.0f° true north\nQibla bearing: %.0f° true north",
+                        trueHeading, qiblaBearing));
+            }
+        }
+        @Override public void onAccuracyChanged(Sensor sensor, int accuracy) { }
+    };
+
+    @Override public void onCreate(Bundle saved) {
+        super.onCreate(saved);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(green);
+        getWindow().setNavigationBarColor(Color.WHITE);
+        WindowInsetsControllerCompat bars = WindowCompat.getInsetsController(
+                getWindow(), getWindow().getDecorView());
+        bars.setAppearanceLightStatusBars(false);
+        bars.setAppearanceLightNavigationBars(true);
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        mosqueItems.addAll(starterMosques());
+        initFirebase();
+        showRoot();
+        if (auth != null) {
+            authStateListener = firebaseAuth -> {
+                FirebaseUser currentUser = firebaseAuth.getCurrentUser();
+                if (currentUser == null) {
+                    showLogin();
+                    return;
+                }
+                if (requiresEmailVerification(currentUser)) {
+                    showLogin();
+                    return;
+                }
+                showApp();
+            };
+            auth.addAuthStateListener(authStateListener);
+        } else {
+            showLogin();
+        }
+    }
+
+    private void initFirebase() {
+        try {
+            String androidAppId = getString(R.string.firebase_android_app_id).trim();
+            if (!androidAppId.matches("^1:885467340998:android:[0-9a-fA-F]+$")) {
+                firebaseReady = false;
+                firebaseConfigError = "Firebase Android setup is incomplete. Register package com.masjidph.navigator in Firebase and configure its actual mobilesdk_app_id before signing in.";
+                return;
+            }
+            if (FirebaseApp.getApps(this).isEmpty()) {
+                FirebaseOptions options = new FirebaseOptions.Builder()
+                        .setApiKey("AIzaSyBuNwIsbjxmyBM6pdzR4HVmFjAhViGIsgk")
+                        .setApplicationId(androidAppId)
+                        .setProjectId("masjid-109f3")
+                        .setGcmSenderId("885467340998")
+                        .setStorageBucket("masjid-109f3.firebasestorage.app")
+                        .build();
+                FirebaseApp.initializeApp(this, options);
+            }
+            auth = FirebaseAuth.getInstance();
+            db = FirebaseFirestore.getInstance();
+            firebaseReady = true;
+            firebaseConfigError = "";
+        } catch (Exception e) {
+            firebaseReady = false;
+            firebaseConfigError = "Firebase could not initialize. Verify the Android app ID and Firebase project configuration.";
+        }
+    }
+
+    private void showRoot() {
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(bg);
+
+        header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(dp(20), dp(16), dp(20), dp(16));
+        header.setBackgroundColor(green);
+        header.addView(text("🕌  MasjidPH Navigator", 22, Color.WHITE, true));
+        headerSubtitle = text("Find your masjid. Connect with your community.", 13, Color.rgb(218, 241, 231), false);
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(-1, -2);
+        hp.topMargin = dp(4);
+        header.addView(headerSubtitle, hp);
+        root.addView(header, new LinearLayout.LayoutParams(-1, -2));
+
+        body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(16), dp(16), dp(16), dp(16));
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.addView(body);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+            Insets systemBars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            header.setPadding(dp(20), dp(16) + systemBars.top, dp(20), dp(16));
+            view.setPadding(0, 0, 0, systemBars.bottom);
+            return windowInsets;
+        });
+        setContentView(root);
+        ViewCompat.requestApplyInsets(root);
+    }
+
+    private void showLogin() {
+        if (root == null) showRoot();
+        body.removeAllViews();
+        if (nav != null) { root.removeView(nav); nav = null; }
+        headerSubtitle.setText("Your Philippine Muslim community");
+
+        LinearLayout hero = card();
+        hero.setBackground(round(green, 22));
+        hero.addView(text("Assalamu Alaikum", 25, Color.WHITE, true));
+        hero.addView(gap(8));
+        hero.addView(text("Discover masjids, follow local communities, and stay connected.",
+                15, Color.rgb(226, 247, 235), false));
+        body.addView(hero);
+        body.addView(gap(12));
+
+        LinearLayout form = card();
+        form.addView(text("Welcome back", 22, ink, true));
+        form.addView(text("Sign in or create your community account.", 14, muted, false));
+        emailInput = input("Email address", false);
+        form.addView(emailInput);
+        passwordInput = input("Password", true);
+        form.addView(passwordInput);
+        Button sign = button("Sign in");
+        form.addView(sign);
+        sign.setOnClickListener(v -> authenticate(false));
+        Button create = button("Create account");
+        create.setBackground(round(pale, 14));
+        create.setTextColor(green);
+        form.addView(create);
+        create.setOnClickListener(v -> authenticate(true));
+        Button google = button("Continue with Google");
+        google.setBackground(round(Color.WHITE, 14));
+        google.setTextColor(green);
+        form.addView(google);
+        google.setOnClickListener(v -> startGoogleSignIn());
+        Button reset = button("Forgot password?");
+        reset.setBackgroundColor(Color.TRANSPARENT);
+        reset.setTextColor(teal);
+        form.addView(reset);
+        reset.setOnClickListener(v -> resetPassword());
+        status = text(firebaseReady ? "" : firebaseConfigError, 13, Color.rgb(170, 45, 45), false);
+        form.addView(status);
+
+        FirebaseUser currentUser = auth == null ? null : auth.getCurrentUser();
+        if (requiresEmailVerification(currentUser)) {
+            status.setText("Your email is not verified yet. Verify it using the link in your inbox before opening your account.");
+
+            Button resendVerification = button("Resend verification email");
+            resendVerification.setBackground(round(Color.WHITE, 14));
+            resendVerification.setTextColor(green);
+            form.addView(resendVerification);
+            resendVerification.setOnClickListener(v -> sendVerificationEmail(currentUser));
+
+            Button checkVerification = button("I've verified my email");
+            form.addView(checkVerification);
+            checkVerification.setOnClickListener(v -> refreshEmailVerification(currentUser));
+
+            Button useAnotherAccount = button("Sign out and use another account");
+            useAnotherAccount.setBackground(round(Color.WHITE, 14));
+            useAnotherAccount.setTextColor(green);
+            form.addView(useAnotherAccount);
+            useAnotherAccount.setOnClickListener(v -> {
+                if (auth != null) auth.signOut();
+            });
+        }
+        body.addView(form);
+        body.addView(gap(12));
+        body.addView(text("By continuing, you agree to follow each masjid community's rules. Be respectful and protect your personal information.",
+                12, muted, false));
+    }
+
+    private boolean requiresEmailVerification(FirebaseUser user) {
+        if (user == null || user.isEmailVerified()) return false;
+        for (UserInfo provider : user.getProviderData()) {
+            if ("password".equals(provider.getProviderId())) return true;
+        }
+        return false;
+    }
+
+    private static final long VERIFICATION_RESEND_COOLDOWN_MS = 60_000L;
+    private static final String AUTH_SECURITY_PREFS = "auth_security";
+    private static final String LAST_VERIFICATION_EMAIL_SENT_AT = "last_verification_email_sent_at";
+
+    private void sendVerificationEmail(FirebaseUser user) {
+        if (user == null || auth == null
+                || auth.getCurrentUser() == null
+                || !auth.getCurrentUser().getUid().equals(user.getUid())) {
+            message("Sign in again before requesting a verification email.");
+            return;
+        }
+
+        SharedPreferences prefs = getSharedPreferences(AUTH_SECURITY_PREFS, MODE_PRIVATE);
+        long lastSentAt = prefs.getLong(LAST_VERIFICATION_EMAIL_SENT_AT, 0L);
+        long remaining = VERIFICATION_RESEND_COOLDOWN_MS - (System.currentTimeMillis() - lastSentAt);
+        if (lastSentAt > 0L && remaining > 0L) {
+            long remainingSeconds = Math.max(1L, (remaining + 999L) / 1000L);
+            if (status != null) {
+                status.setText("Please wait " + remainingSeconds
+                        + " seconds before requesting another verification email.");
+            }
+            return;
+        }
+
+        long requestStartedAt = System.currentTimeMillis();
+        prefs.edit().putLong(LAST_VERIFICATION_EMAIL_SENT_AT, requestStartedAt).apply();
+        if (status != null) status.setText("Sending verification email…");
+        Log.i(TAG, "Auth event=verification_email_requested");
+        user.sendEmailVerification().addOnCompleteListener(this, task -> {
+            Log.i(TAG, "Auth event=verification_email_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
+            if (status == null || status.getParent() == null) return;
+            status.setText(task.isSuccessful()
+                    ? "Verification email sent. Open the link in your inbox, then return and tap “I've verified my email”."
+                    : "Could not send the verification email. Check your connection and try again later.");
+        });
+    }
+
+    private void refreshEmailVerification(FirebaseUser user) {
+        if (user == null || auth == null) {
+            message("Sign in again to check email verification.");
+            return;
+        }
+        if (status != null) status.setText("Checking your email verification…");
+        user.reload().addOnCompleteListener(this, reloadTask -> {
+            FirebaseUser refreshedUser = auth.getCurrentUser();
+            if (!reloadTask.isSuccessful() || refreshedUser == null
+                    || !refreshedUser.getUid().equals(user.getUid())) {
+                if (status != null && status.getParent() != null) {
+                    status.setText("Could not refresh your account. Check your connection and try again.");
+                }
+                return;
+            }
+            if (!refreshedUser.isEmailVerified()) {
+                if (status != null && status.getParent() != null) {
+                    status.setText("Your email still appears unverified. Open the verification link from your inbox, then try again.");
+                }
+                return;
+            }
+            refreshedUser.getIdToken(true)
+                    .addOnSuccessListener(token -> {
+                        FirebaseUser signedInUser = auth.getCurrentUser();
+                        if (signedInUser != null
+                                && signedInUser.getUid().equals(refreshedUser.getUid())
+                                && signedInUser.isEmailVerified()) {
+                            showApp();
+                        } else if (status != null && status.getParent() != null) {
+                            status.setText("Your account changed while checking verification. Please sign in again.");
+                        }
+                    })
+                    .addOnFailureListener(error -> {
+                        if (status != null && status.getParent() != null) {
+                            status.setText("Your email is verified, but the security token could not refresh. Check your connection and try again.");
+                        }
+                    });
+        });
+    }
+
+    private void authenticate(boolean create) {
+        if (!firebaseReady || auth == null) { message(firebaseConfigError); return; }
+        String email = emailInput.getText().toString().trim();
+        String pass = passwordInput.getText().toString();
+        if (email.isEmpty() || pass.length() < 6) {
+            message("Enter a valid email and a password with at least 6 characters.");
+            return;
+        }
+        Log.i(TAG, "Auth event=" + (create ? "email_registration_started" : "email_signin_started"));
+        status.setText(create ? "Creating your account…" : "Signing in…");
+        if (create) {
+            auth.createUserWithEmailAndPassword(email, pass).addOnCompleteListener(this, task -> {
+                if (!task.isSuccessful()) {
+                    Log.w(TAG, "Auth event=email_registration_result success=false " + authErrorSummary(task.getException()));
+                    message(authMessage(task.getException()));
+                    return;
+                }
+                Log.i(TAG, "Auth event=email_registration_result success=true");
+                FirebaseUser newUser = auth.getCurrentUser();
+                if (requiresEmailVerification(newUser)) {
+                    sendVerificationEmail(newUser);
+                }
+            });
+        } else {
+            auth.signInWithEmailAndPassword(email, pass).addOnCompleteListener(this, task -> {
+                Log.i(TAG, "Auth event=email_signin_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
+                if (!task.isSuccessful()) message(authMessage(task.getException()));
+            });
+        }
+    }
+
+    private String authErrorSummary(Exception error) {
+        if (error == null) return "exception=unknown";
+        String summary = "exception=" + error.getClass().getSimpleName();
+        if (error instanceof com.google.firebase.auth.FirebaseAuthException) {
+            summary += " code=" + ((com.google.firebase.auth.FirebaseAuthException) error).getErrorCode();
+        }
+        return summary;
+    }
+
+    private void resetPassword() {
+        String email = emailInput.getText().toString().trim();
+        if (email.isEmpty()) { message("Enter your email first."); return; }
+        if (auth == null || !firebaseReady) { message(firebaseConfigError); return; }
+        Log.i(TAG, "Auth event=password_reset_requested");
+        auth.sendPasswordResetEmail(email).addOnCompleteListener(this, task -> {
+            Log.i(TAG, "Auth event=password_reset_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
+            message(task.isSuccessful() ? "Password reset email sent." : authMessage(task.getException()));
+        });
+    }
+    private void startGoogleSignIn() {
+        if (!firebaseReady || auth == null) {
+            message(firebaseConfigError);
+            return;
+        }
+        String webClientId = getString(R.string.default_web_client_id).trim();
+        if (!webClientId.matches("^[0-9]+-[A-Za-z0-9-]+\\.apps\\.googleusercontent\\.com$")) {
+            message("Google sign-in is not configured. Register the Firebase Android app, configure its OAuth web client, and set FIREBASE_WEB_CLIENT_ID in the repository Actions variables.");
+            return;
+        }
+        Log.i(TAG, "Auth event=google_signin_started");
+        if (status != null) status.setText("Opening Google sign-in…");
+        try {
+            if (googleSignInClient == null) {
+                GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestIdToken(webClientId)
+                        .requestEmail()
+                        .build();
+                googleSignInClient = GoogleSignIn.getClient(this, options);
+            }
+            startActivityForResult(googleSignInClient.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
+        } catch (Exception e) {
+            Log.w(TAG, "Auth event=google_signin_start_failed exception=" + e.getClass().getSimpleName());
+            if (status != null) status.setText("Could not start Google sign-in. Verify the app's OAuth configuration.");
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != GOOGLE_SIGN_IN_REQUEST) return;
+        if (data == null) {
+            message("Google sign-in returned no result data (result code " + resultCode + "). Try again, or use email sign-in.");
+            return;
+        }
+        try {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            GoogleSignInAccount account = task.getResult(ApiException.class);
+            if (account == null || account.getIdToken() == null || account.getIdToken().isEmpty()) {
+                message("Google did not return an ID token. Verify the Web OAuth client ID and Android signing fingerprints.");
+                return;
+            }
+            if (status != null) status.setText("Signing in with Firebase…");
+            AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
+            auth.signInWithCredential(credential).addOnCompleteListener(this, signInTask -> {
+                Log.i(TAG, "Auth event=google_firebase_signin_result success=" + signInTask.isSuccessful()
+                        + (signInTask.isSuccessful() ? "" : " " + authErrorSummary(signInTask.getException())));
+                if (signInTask.isSuccessful()) {
+                    status = null;
+                    showApp();
+                } else {
+                    message("Firebase Google sign-in failed: " + authMessage(signInTask.getException()));
+                }
+            });
+        } catch (ApiException e) {
+            String detail = "Google sign-in failed (status " + e.getStatusCode() + "): "
+                    + (e.getMessage() == null ? "No details" : e.getMessage());
+            message(detail + " Verify the Android OAuth client package/SHA-1 and the Web client ID.");
+        } catch (Exception e) {
+            message("Google sign-in failed: " + authMessage(e));
+        }
+    }
+
+    private void showApp() {
+        if (root == null) showRoot();
+        if (nav != null) root.removeView(nav);
+        nav = null;
+        headerSubtitle.setText("Your masjid and salah companion");
+        renderTab(tab);
+        buildNav();
+    }
+
+    private void buildNav() {
+        if (nav != null && nav.getParent() == root) {
+            root.removeView(nav);
+        }
+        nav = new LinearLayout(this);
+        nav.setGravity(Gravity.CENTER);
+        nav.setBackgroundColor(Color.WHITE);
+        nav.setElevation(dp(12));
+        String[] labels = {"Home", "Explore", "Community", "Qibla", "Profile"};
+        String[] ids = {"home", "explore", "community", "qibla", "profile"};
+        String[] icons = {"⌂", "⌕", "◎", "◉", "♙"};
+        for (int i = 0; i < labels.length; i++) {
+            final String id = ids[i];
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.VERTICAL);
+            item.setGravity(Gravity.CENTER);
+            item.setPadding(dp(2), dp(4), dp(2), dp(4));
+            item.setBackground(round(tab.equals(id) ? pale : Color.WHITE, 14));
+            TextView ic = text(icons[i], 20, green, true);
+            ic.setGravity(Gravity.CENTER);
+            TextView label = text(labels[i], 10, tab.equals(id) ? green : muted, true);
+            label.setGravity(Gravity.CENTER);
+            item.addView(ic);
+            item.addView(label);
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, dp(58), 1);
+            p.setMargins(dp(2), dp(4), dp(2), dp(4));
+            nav.addView(item, p);
+            item.setOnClickListener(v -> { tab = id; renderTab(id); buildNav(); });
+        }
+        root.addView(nav, new LinearLayout.LayoutParams(-1, dp(66)));
+    }
+
+    private void renderTab(String which) {
+        if (body == null) return;
+        if (!"qibla".equals(which)) stopCompass();
+        if (!"community".equals(which)) stopCommunityListener();
+        body.removeAllViews();
+        tab = which;
+        switch (which) {
+            case "home": headerSubtitle.setText("Your masjid and salah companion"); home(); break;
+            case "explore": headerSubtitle.setText("Discover masjids near you"); explore(); break;
+            case "community": headerSubtitle.setText("Conversations rooted in your local masjid"); community(); break;
+            case "qibla": headerSubtitle.setText("Find the direction to Makkah"); qibla(); break;
+            case "profile": headerSubtitle.setText("Your community identity"); profile(); break;
+            default: tab = "home"; home();
+        }
+    }
+
+    private void home() {
+        body.addView(text("Assalamu Alaikum", 25, ink, true));
+        body.addView(text("A calmer way to stay connected to your local Muslim community.", 14, muted, false));
+        body.addView(gap(14));
+
+        LinearLayout updateCard = card();
+        updateCard.addView(text("App updates", 18, ink, true));
+        TextView updateStatus = text("Checking for updates…", 13, muted, false);
+        updateCard.addView(updateStatus);
+        Button updateButton = button("Check for updates");
+        updateCard.addView(updateButton);
+        updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
+        body.addView(updateCard);
+        checkForAppUpdate(updateButton, updateStatus);
+        body.addView(gap(14));
+
+        LinearLayout prayerCard = card();
+        prayerCard.setBackground(round(green, 20));
+        prayerCard.addView(text("TODAY'S PRAYER TIMES", 12, Color.rgb(205, 238, 222), true));
+        prayerCard.addView(gap(8));
+        prayerStatus = text("Tap below to estimate times for your location.", 13, Color.rgb(226, 247, 235), false);
+        prayerCard.addView(prayerStatus);
+        prayerTimes = text("Today's prayer times haven't been loaded yet.\nTap the button below to fetch times for your location.",
+                15, Color.WHITE, false);
+        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-1, -2);
+        tp.topMargin = dp(10);
+        prayerCard.addView(prayerTimes, tp);
+        Button prayerButton = button("Get prayer times for my location");
+        prayerButton.setOnClickListener(v -> loadPrayerTimes());
+        prayerCard.addView(prayerButton);
+        prayerCard.addView(text("Estimated times use the AlAdhan service. Confirm the timetable with your local masjid.",
+                12, Color.rgb(226, 247, 235), false));
+        body.addView(prayerCard);
+
+        LinearLayout reminderCard = card();
+        prayerReminderToggle = new CheckBox(this);
+        prayerReminderToggle.setText("Enable daily prayer reminders");
+        prayerReminderToggle.setTextColor(ink);
+        SharedPreferences reminderPrefs = getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE);
+        boolean remindersEnabled = reminderPrefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false);
+        prayerReminderToggle.setChecked(remindersEnabled);
+        reminderCard.addView(prayerReminderToggle);
+        prayerReminderStatus = text(remindersEnabled
+                ? "Daily reminders are enabled. Android battery policies may delay delivery."
+                : "Reminders are off. Fetch prayer times once to save your location.",
+                12, muted, false);
+        reminderCard.addView(prayerReminderStatus);
+        prayerReminderToggle.setOnCheckedChangeListener((view, enabled) -> {
+            if (enabled && Build.VERSION.SDK_INT >= 33
+                    && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1002);
+                return;
+            }
+            if (enabled) enablePrayerReminders();
+            else disablePrayerReminders();
+        });
+        body.addView(reminderCard);
+
+        body.addView(gap(12));
+        LinearLayout shortcuts = card();
+        shortcuts.addView(text("Your community", 20, ink, true));
+        shortcuts.addView(text("Find a masjid, review its listing, and open directions where coordinates are available.", 14, muted, false));
+        Button b = button("Explore masjids");
+        shortcuts.addView(b);
+        b.setOnClickListener(v -> { tab = "explore"; renderTab(tab); buildNav(); });
+        body.addView(shortcuts);
+    }
+
+    private void checkForAppUpdate(Button updateButton, TextView updateStatus) {
+        updateButton.setEnabled(false);
+        updateButton.setText("Checking…");
+        ioExecutor.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(
+                        "https://api.github.com/repos/jamilinto1197-ai/Masjid-Navigator/releases/latest").openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(8000);
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                connection.setRequestProperty("User-Agent", "MasjidPH-Navigator-Android");
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    throw new IllegalStateException("Update service unavailable");
+                }
+                StringBuilder response = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) response.append(line);
+                }
+                JSONObject release = new JSONObject(response.toString());
+                Matcher matcher = Pattern.compile("(?i)versionCode\\s*:\\s*(\\d+)").matcher(release.optString("body", ""));
+                if (!matcher.find()) throw new IllegalStateException("Release version metadata is missing");
+                long latestCode = Long.parseLong(matcher.group(1));
+                String tag = release.optString("tag_name", "latest");
+                String download = "";
+                org.json.JSONArray assets = release.optJSONArray("assets");
+                if (assets != null) for (int i = 0; i < assets.length(); i++) {
+                    JSONObject asset = assets.optJSONObject(i);
+                    if (asset != null && asset.optString("name").startsWith("MasjidPH-Navigator-")
+                            && asset.optString("name").endsWith(".apk")) {
+                        download = asset.optString("browser_download_url", "");
+                        if (!download.isEmpty()) break;
+                    }
+                }
+                if (download.isEmpty()) throw new IllegalStateException("No APK is attached to the latest release");
+                final String apkUrl = download;
+                long installedCode = getPackageManager().getPackageInfo(getPackageName(), 0).getLongVersionCode();
+                mainHandler.post(() -> {
+                    updateButton.setEnabled(true);
+                    if (latestCode > installedCode) {
+                        updateStatus.setText("Update available: " + tag + " (version code " + latestCode + ").");
+                        updateButton.setText("Download update");
+                        updateButton.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl))));
+                    } else {
+                        updateStatus.setText("You're using the latest version (" + tag + ").");
+                        updateButton.setText("Check again");
+                        updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
+                    }
+                });
+            } catch (Exception e) {
+                Log.w(TAG, "App update check failed", e);
+                mainHandler.post(() -> {
+                    updateButton.setEnabled(true);
+                    updateButton.setText("Try again");
+                    updateStatus.setText("Couldn't check for updates. Check your connection and try again.");
+                    updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
+                });
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        });
+    }
+
+    private void loadPrayerTimes() {
+        if (prayerStatus != null) prayerStatus.setText("Requesting your location…");
+        if (prayerTimes != null) prayerTimes.setText("Getting today's prayer times…");
+        findCurrentLocation(new LocationResult() {
+            @Override public void onSuccess(Location location) {
+                if (prayerStatus != null) prayerStatus.setText("Fetching estimated times for your coordinates…");
+                fetchPrayerTimes(location);
+            }
+            @Override public void onError(String message) {
+                if (prayerStatus != null) prayerStatus.setText("Couldn't get your location: " + message);
+                if (prayerTimes != null) prayerTimes.setText("Prayer times are unavailable until location access succeeds.");
+            }
+        });
+    }
+
+    private void fetchPrayerTimes(Location location) {
+        SharedPreferences reminderPrefs = getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE);
+        reminderPrefs.edit()
+                .putString(PrayerScheduleWorker.KEY_LATITUDE, String.format(Locale.US, "%.6f", location.getLatitude()))
+                .putString(PrayerScheduleWorker.KEY_LONGITUDE, String.format(Locale.US, "%.6f", location.getLongitude()))
+                .apply();
+        if (reminderPrefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false)) {
+            PrayerScheduleWorker.enqueueNow(this);
+            if (prayerReminderStatus != null) {
+                prayerReminderStatus.setText("Updating your daily prayer reminders from this location…");
+            }
+        }
+        ioExecutor.execute(() -> {
+            HttpURLConnection connection = null;
+            try {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy", Locale.US);
+                dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Manila"));
+                String date = dateFormat.format(new Date());
+                String lat = String.format(Locale.US, "%.6f", location.getLatitude());
+                String lon = String.format(Locale.US, "%.6f", location.getLongitude());
+                URL url = new URL("https://api.aladhan.com/v1/timings/" + date
+                        + "?latitude=" + lat + "&longitude=" + lon
+                        + "&method=3&school=0&timezonestring=Asia%2FManila");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(12000);
+                connection.setReadTimeout(12000);
+                connection.setRequestProperty("Accept", "application/json");
+                int responseCode = connection.getResponseCode();
+                if (responseCode < 200 || responseCode >= 300) {
+                    throw new IllegalStateException("Prayer service returned HTTP " + responseCode);
+                }
+                StringBuilder response = new StringBuilder();
+                try (InputStream input = connection.getInputStream();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(input, "UTF-8"))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) response.append(line);
+                }
+                JSONObject json = new JSONObject(response.toString());
+                if (json.optInt("code") != 200 || !json.has("data")) {
+                    throw new IllegalStateException("Prayer service returned an invalid response");
+                }
+                JSONObject timings = json.getJSONObject("data").getJSONObject("timings");
+                String result = "Fajr      " + cleanTime(timings.optString("Fajr")) + "\n"
+                        + "Sunrise   " + cleanTime(timings.optString("Sunrise")) + "\n"
+                        + "Dhuhr     " + cleanTime(timings.optString("Dhuhr")) + "\n"
+                        + "Asr       " + cleanTime(timings.optString("Asr")) + "\n"
+                        + "Maghrib   " + cleanTime(timings.optString("Maghrib")) + "\n"
+                        + "Isha      " + cleanTime(timings.optString("Isha"));
+                runOnUiThread(() -> {
+                    if (prayerTimes != null) prayerTimes.setText(result);
+                    if (prayerStatus != null) prayerStatus.setText("Estimated for your current location · Asia/Manila.");
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    if (prayerStatus != null) prayerStatus.setText("Could not fetch prayer times. Check your connection and try again.");
+                    if (prayerTimes != null) prayerTimes.setText("Today's prayer times couldn't be loaded. Tap the button to retry.");
+                });
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        });
+    }
+
+    private String cleanTime(String time) {
+        if (time == null || time.isEmpty()) return "—";
+        int space = time.indexOf(' ');
+        return space > 0 ? time.substring(0, space) : time;
+    }
+
+    private void explore() {
+        body.addView(text("Find a masjid", 24, ink, true));
+        body.addView(text("Starter coordinates are approximate and listings need local verification. Search works on the loaded list without repeatedly querying Firestore.",
+                13, muted, false));
+        mosqueSearch = input("Search name, city, or province", false);
+        body.addView(mosqueSearch);
+        mosqueLocateButton = button("Use my location to sort by distance");
+        body.addView(mosqueLocateButton);
+        mosqueLocateButton.setOnClickListener(v -> {
+            mosqueLocateButton.setEnabled(false);
+            findCurrentLocation(new LocationResult() {
+                @Override public void onSuccess(Location location) {
+                    if (mosqueLocateButton != null) mosqueLocateButton.setEnabled(true);
+                    renderMosqueResults();
+                }
+                @Override public void onError(String message) {
+                    if (mosqueLocateButton != null) mosqueLocateButton.setEnabled(true);
+                    if (mosqueStatus != null) mosqueStatus.setText("Could not get location: " + message);
+                }
+            });
+        });
+
+        Button addMosqueButton = button("Add a masjid listing (admins only)");
+        addMosqueButton.setVisibility(View.GONE);
+        body.addView(addMosqueButton);
+        addMosqueButton.setOnClickListener(v -> showAdminMosqueForm());
+        FirebaseUser directoryUser = auth == null ? null : auth.getCurrentUser();
+        if (directoryUser != null) {
+            directoryUser.getIdToken(true).addOnSuccessListener(token -> {
+                if (Boolean.TRUE.equals(token.getClaims().get("admin"))
+                        && addMosqueButton.getParent() != null) {
+                    addMosqueButton.setVisibility(View.VISIBLE);
+                }
+            });
+        }
+        mosqueResults = new LinearLayout(this);
+        mosqueResults.setOrientation(LinearLayout.VERTICAL);
+        body.addView(mosqueResults);
+        mosqueStatus = text("Showing starter listings. Verify details locally before travelling.", 12, muted, false);
+        renderMosqueResults();
+        mosqueSearch.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { renderMosqueResults(); }
+            @Override public void afterTextChanged(android.text.Editable e) { }
+        });
+
+        if (db != null && !mosqueLoadRequested) {
+            mosqueLoadRequested = true;
+            mosqueStatus.setText("Loading mosque directory…");
+            db.collection("mosques").limit(250).get().addOnSuccessListener(snapshot -> {
+                if (!snapshot.isEmpty()) {
+                    List<MosqueItem> loaded = new ArrayList<>();
+                    for (QueryDocumentSnapshot document : snapshot) {
+                        String name = firstNonEmpty(document.getString("name"), document.getString("mosqueName"), "Masjid");
+                        String city = firstNonEmpty(document.getString("city"), document.getString("addressCity"), "");
+                        String province = firstNonEmpty(document.getString("province"), document.getString("region"), "");
+                        Object latRaw = firstPresent(document.get("lat"), document.get("latitude"));
+                        Object lonRaw = firstPresent(document.get("lon"), document.get("lng"), document.get("longitude"));
+                        double lat = toCoordinate(latRaw);
+                        double lon = toCoordinate(lonRaw);
+                        loaded.add(new MosqueItem(document.getId(), name, city, province, lat, lon, false));
+                    }
+                    mosqueItems.clear();
+                    mosqueItems.addAll(loaded);
+                    if (mosqueStatus != null) mosqueStatus.setText("Loaded " + loaded.size() + " mosque listings from Firestore. Verify details before travel.");
+                } else {
+                    mosqueLoadRequested = false;
+                    if (mosqueStatus != null) {
+                        mosqueStatus.setText("Firestore has no mosque records yet. Showing starter listings that need local verification.");
+                    }
+                }
+                renderMosqueResults();
+            }).addOnFailureListener(error -> {
+                mosqueLoadRequested = false;
+                if (mosqueStatus != null) mosqueStatus.setText("Firestore is unavailable. Showing starter listings that need local verification.");
+                renderMosqueResults();
+            });
+        } else if (db == null && mosqueStatus != null) {
+            mosqueStatus.setText("Firebase is not configured. Showing local starter listings; cloud listings are unavailable.");
+        }
+    }
+
+    private void showAdminMosqueForm() {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) {
+            message("Sign in with an administrator account to add a masjid listing.");
+            return;
+        }
+
+        user.getIdToken(true).addOnSuccessListener(token -> {
+            if (!Boolean.TRUE.equals(token.getClaims().get("admin"))) {
+                message("This account is not authorized to manage mosque listings.");
+                return;
+            }
+
+            LinearLayout form = new LinearLayout(MainActivity.this);
+            form.setOrientation(LinearLayout.VERTICAL);
+            form.setPadding(dp(8), dp(4), dp(8), dp(4));
+
+            EditText nameField = input("Masjid name", false);
+            nameField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+            EditText cityField = input("City / municipality (optional)", false);
+            cityField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+            EditText provinceField = input("Province / region (optional)", false);
+            provinceField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+            EditText addressField = input("Street address / landmark (optional)", false);
+            addressField.setFilters(new InputFilter[]{new InputFilter.LengthFilter(200)});
+            EditText latitudeField = input("Latitude (e.g. 8.0555)", false);
+            latitudeField.setInputType(InputType.TYPE_CLASS_NUMBER
+                    | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
+            EditText longitudeField = input("Longitude (e.g. 123.7907)", false);
+            longitudeField.setInputType(InputType.TYPE_CLASS_NUMBER
+                    | InputType.TYPE_NUMBER_FLAG_DECIMAL | InputType.TYPE_NUMBER_FLAG_SIGNED);
+
+            form.addView(text("Only verified administrators can publish directory records. Verify the coordinates before saving; users will still be advised to confirm the location locally.",
+                    13, muted, false));
+            form.addView(nameField);
+            form.addView(cityField);
+            form.addView(provinceField);
+            form.addView(addressField);
+            form.addView(latitudeField);
+            form.addView(longitudeField);
+            ScrollView scroll = new ScrollView(MainActivity.this);
+            scroll.addView(form);
+
+            android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Add a masjid listing")
+                    .setView(scroll)
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Publish listing", null)
+                    .create();
+            dialog.setOnShowListener(ignored -> {
+                Button save = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE);
+                save.setOnClickListener(v -> {
+                    String name = nameField.getText().toString().trim();
+                    String city = cityField.getText().toString().trim();
+                    String province = provinceField.getText().toString().trim();
+                    String address = addressField.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        nameField.setError("Enter a masjid name.");
+                        return;
+                    }
+                    if (city.length() > 100 || province.length() > 100 || address.length() > 200) {
+                        message("Shorten the city, province, or address field.");
+                        return;
+                    }
+                    final double latitude;
+                    final double longitude;
+                    try {
+                        latitude = Double.parseDouble(latitudeField.getText().toString().trim());
+                        longitude = Double.parseDouble(longitudeField.getText().toString().trim());
+                    } catch (NumberFormatException exception) {
+                        latitudeField.setError("Enter valid latitude and longitude values.");
+                        longitudeField.setError("Enter valid latitude and longitude values.");
+                        return;
+                    }
+                    if (!Double.isFinite(latitude) || latitude < -90.0 || latitude > 90.0) {
+                        latitudeField.setError("Latitude must be between -90 and 90.");
+                        return;
+                    }
+                    if (!Double.isFinite(longitude) || longitude < -180.0 || longitude > 180.0) {
+                        longitudeField.setError("Longitude must be between -180 and 180.");
+                        return;
+                    }
+
+                    save.setEnabled(false);
+                    FirebaseUser currentUser = auth == null ? null : auth.getCurrentUser();
+                    if (currentUser == null || db == null) {
+                        save.setEnabled(true);
+                        message("Your session ended. Sign in again and retry.");
+                        return;
+                    }
+                    currentUser.getIdToken(true).addOnSuccessListener(refreshedToken -> {
+                        if (!Boolean.TRUE.equals(refreshedToken.getClaims().get("admin"))) {
+                            save.setEnabled(true);
+                            message("Administrator access is no longer available for this account.");
+                            return;
+                        }
+                        java.util.Map<String, Object> listing = new java.util.HashMap<>();
+                        listing.put("name", name);
+                        listing.put("city", city);
+                        listing.put("province", province);
+                        listing.put("address", address);
+                        listing.put("latitude", latitude);
+                        listing.put("longitude", longitude);
+                        listing.put("updatedAt", FieldValue.serverTimestamp());
+                        listing.put("updatedBy", currentUser.getUid());
+
+                        db.collection("mosques").document().set(listing)
+                                .addOnSuccessListener(ignoredWrite -> {
+                                    dialog.dismiss();
+                                    mosqueLoadRequested = false;
+                                    tab = "explore";
+                                    renderTab(tab);
+                                    buildNav();
+                                })
+                                .addOnFailureListener(error -> {
+                                    save.setEnabled(true);
+                                    message("Could not publish the listing. Check administrator claims and deployed Firestore rules.");
+                                });
+                    }).addOnFailureListener(error -> {
+                        save.setEnabled(true);
+                        message("Could not refresh administrator access. Check your connection and try again.");
+                    });
+                });
+            });
+            dialog.show();
+        }).addOnFailureListener(error ->
+                message("Could not verify administrator access. Check your connection and try again."));
+    }
+
+    private void renderMosqueResults() {
+        if (mosqueResults == null) return;
+        mosqueResults.removeAllViews();
+        if (mosqueStatus != null && mosqueStatus.getParent() != null) {
+            ((android.view.ViewGroup) mosqueStatus.getParent()).removeView(mosqueStatus);
+        }
+        mosqueResults.addView(cardWithChild(mosqueStatus == null
+                ? text("Mosque directory", 18, ink, true) : mosqueStatus));
+        String query = mosqueSearch == null ? "" : mosqueSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
+        List<MosqueItem> visible = new ArrayList<>();
+        for (MosqueItem item : mosqueItems) {
+            String haystack = (item.name + " " + item.city + " " + item.province).toLowerCase(Locale.ROOT);
+            if (query.isEmpty() || haystack.contains(query)) visible.add(item);
+        }
+        if (activeLocation != null) {
+            Collections.sort(visible, (a, b) -> Double.compare(distanceKm(activeLocation, a), distanceKm(activeLocation, b)));
+        }
+        if (visible.isEmpty()) {
+            mosqueResults.addView(text("No matching masjids. Try another city or province.", 14, muted, false));
+            return;
+        }
+        for (MosqueItem item : visible) {
+            LinearLayout row = card();
+            row.addView(text("🕌  " + item.name, 17, ink, true));
+            String place = item.city + (item.city.isEmpty() || item.province.isEmpty() ? "" : ", ") + item.province;
+            row.addView(text(place.isEmpty() ? "Location details unavailable" : place, 13, muted, false));
+            String sourceLabel = item.starter ? "Starter listing · verify coordinates locally" : "Community directory listing · verify before travel";
+            if (activeLocation != null && item.hasCoordinates()) {
+                sourceLabel += String.format(Locale.getDefault(), " · %.1f km away", distanceKm(activeLocation, item));
+            }
+            row.addView(text(sourceLabel, 12, muted, false));
+            if (item.hasCoordinates()) {
+                Button directions = button("Check directions in Maps");
+                directions.setOnClickListener(v -> new android.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Verify this location")
+                        .setMessage("Directory coordinates may be approximate or out of date. Confirm the masjid and destination before starting navigation.")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Open Maps", (dialog, which) -> openDirections(item))
+                        .show());
+                row.addView(directions);
+            }
+            mosqueResults.addView(row);
+        }
+    }
+
+    private LinearLayout cardWithChild(View child) {
+        LinearLayout c = card();
+        if (child.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) child.getParent()).removeView(child);
+        }
+        c.addView(child);
+        return c;
+    }
+
+    private void openDirections(MosqueItem item) {
+        Configuration.getInstance().setUserAgentValue(getPackageName());
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int padding = dp(16);
+        content.setPadding(padding, padding, padding, padding);
+
+        TextView title = text(item.name, 20, ink, true);
+        content.addView(title);
+        content.addView(text(item.city + ", " + item.province + "\n"
+                + String.format(Locale.US, "Destination: %.5f, %.5f", item.latitude, item.longitude),
+                13, muted, false));
+
+        MapView map = new MapView(this);
+        map.setTileSource(TileSourceFactory.MAPNIK);
+        map.setMultiTouchControls(true);
+        GeoPoint destination = new GeoPoint(item.latitude, item.longitude);
+        map.getController().setZoom(15.0);
+        map.getController().setCenter(destination);
+        Marker marker = new Marker(map);
+        marker.setPosition(destination);
+        marker.setTitle(item.name);
+        marker.setSnippet(item.address == null ? "" : item.address);
+        map.getOverlays().add(marker);
+        LinearLayout.LayoutParams mapParams = new LinearLayout.LayoutParams(-1, dp(320));
+        mapParams.topMargin = dp(12);
+        content.addView(map, mapParams);
+
+        content.addView(text("This in-app map shows the selected masjid. Live turn-by-turn routing is a later addition; confirm local access and parking before travel.",
+                12, muted, false));
+        new android.app.AlertDialog.Builder(this)
+                .setView(content)
+                .setPositiveButton("Close", null)
+                .show();
+    }
+
+    private List<MosqueItem> starterMosques() {
+        List<MosqueItem> list = new ArrayList<>();
+        list.add(new MosqueItem("Masjid Dimakuta", "Marawi City", "Lanao del Sur", 8.0005, 124.2928, true));
+        list.add(new MosqueItem("Islamic Center / King Faisal Mosque", "Marawi City", "Lanao del Sur", 8.0027, 124.2832, true));
+        list.add(new MosqueItem("Masjid in Poblacion", "Tubod", "Lanao del Norte", 8.0555, 123.7907, true));
+        list.add(new MosqueItem("Masjid Muslimen", "Poblacion, Magsaysay", "Lanao del Norte", 8.0341, 123.9169, true));
+        list.add(new MosqueItem("Grand Mosque of Cotabato", "Cotabato City", "Maguindanao del Norte", 7.2236, 124.2452, true));
+        list.add(new MosqueItem("Blue Mosque (Sultan Haji Hassanal Bolkiah Masjid)", "Taguig", "Metro Manila", 14.5176, 121.0493, true));
+        list.add(new MosqueItem("Quiapo Mosque (Golden Mosque)", "Manila", "Metro Manila", 14.5995, 120.9850, true));
+        list.add(new MosqueItem("Masjid Al-Dahab", "Manila", "Metro Manila", 14.5991, 120.9855, true));
+        list.add(new MosqueItem("Masjid in Zamboanga City", "Zamboanga City", "Zamboanga del Sur", 6.9214, 122.0790, true));
+        list.add(new MosqueItem("Masjid in Jolo", "Jolo", "Sulu", 6.0522, 121.0022, true));
+        list.add(new MosqueItem("Masjid in Isabela City", "Isabela City", "Basilan", 6.7041, 121.9712, true));
+        list.add(new MosqueItem("Masjid Sultan Omar Dianalan", "Camague, Iligan City", "Lanao del Norte", 8.21259, 124.23015, true));
+        list.add(new MosqueItem("Masjid Musa", "Santiago, Iligan City", "Lanao del Norte", 8.24816, 124.24375, true));
+        list.add(new MosqueItem("Halal Masjid", "Bonbonon area, Lanao del Norte", "Lanao del Norte", 8.26655, 124.29043, true));
+        list.add(new MosqueItem("Pugaan Masjid", "Pugaan, Iligan City", "Lanao del Norte", 8.24529, 124.31003, true));
+        list.add(new MosqueItem("Masjid in Davao City", "Davao City", "Davao del Sur", 7.0731, 125.6128, true));
+        return list;
+    }
+
+    private String firstNonEmpty(String a, String b, String fallback) {
+        if (a != null && !a.trim().isEmpty()) return a;
+        if (b != null && !b.trim().isEmpty()) return b;
+        return fallback;
+    }
+
+    private Object firstPresent(Object... values) {
+        for (Object value : values) if (value != null) return value;
+        return null;
+    }
+
+    private double toCoordinate(Object value) {
+        if (value instanceof Number) return ((Number) value).doubleValue();
+        if (value instanceof String) {
+            try { return Double.parseDouble((String) value); }
+            catch (NumberFormatException ignored) { return Double.NaN; }
+        }
+        return Double.NaN;
+    }
+
+    private double distanceKm(Location from, MosqueItem to) {
+        if (!to.hasCoordinates()) return Double.POSITIVE_INFINITY;
+        float[] results = new float[1];
+        Location.distanceBetween(from.getLatitude(), from.getLongitude(), to.latitude, to.longitude, results);
+        return results[0] / 1000.0;
+    }
+
+    private void community() {
+        LinearLayout intro = card();
+        intro.setBackground(round(green, 20));
+        intro.addView(text("Your masjid, your community", 22, Color.WHITE, true));
+        intro.addView(gap(8));
+        intro.addView(text("Choose a published masjid to open its live discussion room. Rooms are open to verified signed-in members; keep messages respectful and never share private information.",
+                13, Color.rgb(226, 247, 235), false));
+        body.addView(intro);
+
+        LinearLayout chatCard = card();
+        chatCard.addView(text("Masjid discussion", 19, ink, true));
+        communityStatus = text("Loading published masjid rooms…", 13, muted, false);
+        chatCard.addView(communityStatus);
+        communitySpinner = new Spinner(this);
+        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(-1, -2);
+        spinnerParams.topMargin = dp(8);
+        chatCard.addView(communitySpinner, spinnerParams);
+
+        ScrollView messageScroll = new ScrollView(this);
+        communityMessageList = new LinearLayout(this);
+        communityMessageList.setOrientation(LinearLayout.VERTICAL);
+        communityMessageList.addView(text("Choose a masjid to load its messages.", 14, muted, false));
+        messageScroll.addView(communityMessageList);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(-1, dp(300));
+        scrollParams.topMargin = dp(10);
+        chatCard.addView(messageScroll, scrollParams);
+
+        communityMessageInput = input("Write a message (max 1000 characters)", false);
+        communityMessageInput.setSingleLine(false);
+        communityMessageInput.setMinLines(2);
+        communityMessageInput.setMaxLines(4);
+        communityMessageInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        communityMessageInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1000)});
+        chatCard.addView(communityMessageInput);
+        Button send = button("Send message");
+        chatCard.addView(send);
+        send.setOnClickListener(v -> sendCommunityMessage());
+        chatCard.addView(text("Long-press a message to report it, or to delete your own message. Verified administrators can review reports in the moderation queue.",
+                12, muted, false));
+        body.addView(chatCard);
+
+        if (db == null || auth == null || auth.getCurrentUser() == null) {
+            communityStatus.setText("Community chat requires Firebase configuration and a signed-in account.");
+            communityMessageList.removeAllViews();
+            communityMessageList.addView(text("No chat connection.", 14, muted, false));
+            return;
+        }
+
+        Button moderationButton = button("Review reported messages (admins only)");
+        moderationButton.setVisibility(View.GONE);
+        moderationButton.setOnClickListener(v -> showModerationQueue());
+        chatCard.addView(moderationButton);
+        FirebaseUser moderationUser = auth.getCurrentUser();
+        moderationUser.getIdToken(true).addOnSuccessListener(token -> {
+            if (Boolean.TRUE.equals(token.getClaims().get("admin"))
+                    && moderationButton.getParent() != null) {
+                moderationButton.setVisibility(View.VISIBLE);
+            }
+        });
+
+        db.collection("mosques").limit(250).get().addOnSuccessListener(snapshot -> {
+            List<MosqueItem> rooms = new ArrayList<>();
+            for (QueryDocumentSnapshot document : snapshot) {
+                String name = firstNonEmpty(document.getString("name"), document.getString("mosqueName"), "Masjid");
+                String city = firstNonEmpty(document.getString("city"), document.getString("addressCity"), "");
+                String province = firstNonEmpty(document.getString("province"), document.getString("region"), "");
+                rooms.add(new MosqueItem(document.getId(), name, city, province, Double.NaN, Double.NaN, false));
+            }
+            communityMosques.clear();
+            communityMosques.addAll(rooms);
+            List<String> labels = new ArrayList<>();
+            for (MosqueItem mosque : rooms) {
+                String place = mosque.city + (mosque.city.isEmpty() || mosque.province.isEmpty() ? "" : ", ") + mosque.province;
+                labels.add(place.isEmpty() ? mosque.name : mosque.name + " · " + place);
+            }
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_item, labels);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            communitySpinner.setAdapter(adapter);
+            if (rooms.isEmpty()) {
+                communityStatus.setText("No mosque documents are published in Firestore yet. Chat rooms appear here once the directory is configured.");
+                communityMessageList.removeAllViews();
+                communityMessageList.addView(text("Chat is unavailable because no masjid rooms are published yet. Please try again after the directory is set up.", 14, ink, false));
+                communityMessageInput.setEnabled(false);
+                communityMessageInput.setHint("Chat unavailable — no masjid rooms");
+                send.setEnabled(false);
+                send.setText("Chat unavailable");
+                return;
+            }
+            communityStatus.setText("Loaded " + rooms.size() + " community room(s). Select a masjid to read and send messages.");
+            communitySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (position >= 0 && position < communityMosques.size()) loadCommunityMessages(communityMosques.get(position));
+                }
+                @Override public void onNothingSelected(AdapterView<?> parent) {
+                    stopCommunityListener();
+                }
+            });
+            loadCommunityMessages(rooms.get(0));
+        }).addOnFailureListener(error -> {
+            communityStatus.setText("Could not load community rooms. Check Firebase configuration and Firestore read rules.");
+            communityMessageList.removeAllViews();
+            communityMessageList.addView(text("The directory is unavailable.", 14, muted, false));
+            communityMessageInput.setEnabled(false);
+            communityMessageInput.setHint("Chat unavailable — directory failed to load");
+            send.setEnabled(false);
+            send.setText("Chat unavailable");
+        });
+    }
+
+    private void showModerationQueue() {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) {
+            message("Sign in with an administrator account to review reports.");
+            return;
+        }
+        user.getIdToken(true).addOnSuccessListener(token -> {
+            if (!Boolean.TRUE.equals(token.getClaims().get("admin"))) {
+                message("This account is not authorized to moderate reports.");
+                return;
+            }
+            displayModerationQueue();
+        }).addOnFailureListener(error ->
+                message("Could not verify administrator access. Check your connection and try again."));
+    }
+
+    private void displayModerationQueue() {
+        LinearLayout entries = new LinearLayout(this);
+        entries.setOrientation(LinearLayout.VERTICAL);
+        entries.setPadding(dp(8), dp(8), dp(8), dp(8));
+        entries.addView(text("Loading reports…", 14, muted, false));
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(entries);
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(this)
+                .setTitle("Community moderation queue")
+                .setView(scroll)
+                .setNegativeButton("Close", null)
+                .create();
+        dialog.show();
+
+        db.collectionGroup("reports").limit(50).get()
+                .addOnSuccessListener(snapshot -> {
+                    entries.removeAllViews();
+                    if (snapshot.isEmpty()) {
+                        entries.addView(text("No reports are waiting for review.", 14, muted, false));
+                        return;
+                    }
+                    for (DocumentSnapshot report : snapshot.getDocuments()) {
+                        DocumentReference reportRef = report.getReference();
+                        DocumentReference mosqueRef = reportRef.getParent() == null
+                                ? null : reportRef.getParent().getParent();
+                        String messageId = report.getString("messageId");
+                        if (mosqueRef == null || messageId == null || messageId.trim().isEmpty()) {
+                            continue;
+                        }
+                        String mosqueId = mosqueRef.getId();
+                        String reason = firstNonEmpty(report.getString("reason"), "Other", "");
+                        String reporter = firstNonEmpty(report.getString("reporterUid"), "Unknown member", "");
+                        DocumentReference messageRef = mosqueRef.collection("messages").document(messageId);
+
+                        LinearLayout row = card();
+                        row.addView(text(mosqueId + " · " + reason, 15, ink, true));
+                        row.addView(text("Reported by: " + reporter, 12, muted, false));
+                        TextView preview = text("Loading reported message…", 13, muted, false);
+                        row.addView(preview);
+                        messageRef.get().addOnSuccessListener(messageSnapshot -> {
+                            String messageText = messageSnapshot.exists()
+                                    ? firstNonEmpty(messageSnapshot.getString("text"), "Message text unavailable", "")
+                                    : "The reported message no longer exists.";
+                            preview.setText(messageText);
+                        }).addOnFailureListener(error -> preview.setText("Message preview unavailable."));
+
+                        Button dismiss = button("Dismiss report");
+                        dismiss.setOnClickListener(v -> new android.app.AlertDialog.Builder(MainActivity.this)
+                                .setTitle("Dismiss this report?")
+                                .setMessage("The report will be removed; the original message will remain.")
+                                .setNegativeButton("Cancel", null)
+                                .setPositiveButton("Dismiss", (confirm, which) -> reportRef.delete()
+                                        .addOnSuccessListener(done -> row.setVisibility(View.GONE))
+                                        .addOnFailureListener(error -> message("Could not dismiss the report. Verify moderator access.")))
+                                .show());
+                        row.addView(dismiss);
+
+                        Button remove = button("Delete message and close report");
+                        remove.setOnClickListener(v -> new android.app.AlertDialog.Builder(MainActivity.this)
+                                .setTitle("Delete reported message?")
+                                .setMessage("This permanently deletes the message and this report. Other reports, if any, remain for review.")
+                                .setNegativeButton("Cancel", null)
+                                .setPositiveButton("Delete message", (confirm, which) -> {
+                                    com.google.firebase.firestore.WriteBatch batch = db.batch();
+                                    batch.delete(messageRef);
+                                    batch.delete(reportRef);
+                                    batch.commit()
+                                            .addOnSuccessListener(done -> row.setVisibility(View.GONE))
+                                            .addOnFailureListener(error -> message("Could not remove the message. Verify moderator access and Firestore rules."));
+                                })
+                                .show());
+                        row.addView(remove);
+                        entries.addView(row);
+                    }
+                    if (entries.getChildCount() == 0) {
+                        entries.addView(text("No valid report records were found.", 14, muted, false));
+                    }
+                })
+                .addOnFailureListener(error -> {
+                    entries.removeAllViews();
+                    entries.addView(text("Could not load the moderation queue. Verify that this account has the server-assigned admin claim and the deployed Firestore rules allow moderation.", 14, muted, false));
+                });
+    }
+
+    private void loadCommunityMessages(MosqueItem mosque) {
+        stopCommunityListener();
+        if (db == null || mosque == null || mosque.documentId.isEmpty()) return;
+        activeCommunityId = mosque.documentId;
+        communityMessageList.removeAllViews();
+        communityMessageList.addView(text("Loading recent messages…", 14, muted, false));
+        communityListener = db.collection("mosques").document(mosque.documentId)
+                .collection("messages").orderBy("createdAt", Query.Direction.DESCENDING).limit(60)
+                .addSnapshotListener((snapshot, error) -> {
+                    if (!activeCommunityId.equals(mosque.documentId) || communityMessageList == null) return;
+                    if (error != null) {
+                        communityMessageList.removeAllViews();
+                        communityMessageList.addView(text("Messages could not load. Check the deployed Firestore rules.", 14, muted, false));
+                        return;
+                    }
+                    communityMessageList.removeAllViews();
+                    if (snapshot == null || snapshot.isEmpty()) {
+                        communityMessageList.addView(text("No messages yet. Start a respectful conversation.", 14, muted, false));
+                        return;
+                    }
+                    List<DocumentSnapshot> messages = new ArrayList<>(snapshot.getDocuments());
+                    Collections.reverse(messages);
+                    for (DocumentSnapshot document : messages) addCommunityMessage(document, mosque.documentId);
+                });
+    }
+
+    private void addCommunityMessage(DocumentSnapshot document, String mosqueId) {
+        String bodyText = document.getString("text");
+        String authorName = firstNonEmpty(document.getString("authorName"), "Member", "");
+        String authorUid = document.getString("authorUid");
+        if (bodyText == null || bodyText.trim().isEmpty()) return;
+
+        LinearLayout messageCard = card();
+        boolean mine = auth != null && auth.getCurrentUser() != null
+                && auth.getCurrentUser().getUid().equals(authorUid);
+        messageCard.setBackground(round(mine ? pale : Color.WHITE, 14));
+        messageCard.addView(text(authorName + (mine ? " · You" : ""), 13, green, true));
+        messageCard.addView(text(bodyText, 15, ink, false));
+        Timestamp timestamp = document.getTimestamp("createdAt");
+        if (timestamp != null) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MMM d, h:mm a", Locale.getDefault());
+            dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Manila"));
+            messageCard.addView(text(dateFormat.format(timestamp.toDate()), 11, muted, false));
+        }
+        messageCard.setOnLongClickListener(v -> {
+            if (mine) {
+                new android.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Message options")
+                        .setMessage("Delete your message?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Delete", (dialog, which) -> deleteCommunityMessage(mosqueId, document.getId()))
+                        .show();
+            } else {
+                new android.app.AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Report message")
+                        .setMessage("Send this message for administrator review?")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Report", (dialog, which) -> reportCommunityMessage(mosqueId, document.getId()))
+                        .show();
+            }
+            return true;
+        });
+        communityMessageList.addView(messageCard);
+    }
+
+    private void sendCommunityMessage() {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) { message("Sign in to use community chat."); return; }
+        if (activeCommunityId.isEmpty()) { message("Select a published mosque room first."); return; }
+        String bodyText = communityMessageInput == null ? "" : communityMessageInput.getText().toString().trim();
+        if (bodyText.isEmpty()) { message("Type a message first."); return; }
+        if (bodyText.length() > 1000) { message("Messages must be 1000 characters or fewer."); return; }
+        String authorName = user.getDisplayName();
+        if (authorName == null || authorName.trim().isEmpty()) {
+            String email = user.getEmail();
+            authorName = email == null ? "Member" : email.split("@")[0];
+        }
+        if (authorName.length() > 60) authorName = authorName.substring(0, 60);
+        java.util.Map<String, Object> messageData = new java.util.HashMap<>();
+        messageData.put("authorUid", user.getUid());
+        messageData.put("authorName", authorName);
+        messageData.put("text", bodyText);
+        messageData.put("createdAt", FieldValue.serverTimestamp());
+        String mosqueId = activeCommunityId;
+        EditText sendingInput = communityMessageInput;
+        TextView sendingStatus = communityStatus;
+        com.google.firebase.firestore.DocumentReference messageRef = db
+                .collection("mosques").document(mosqueId)
+                .collection("messages").document();
+        java.util.Map<String, Object> throttleData = new java.util.HashMap<>();
+        throttleData.put("lastMessageAt", FieldValue.serverTimestamp());
+        throttleData.put("lastMessageId", messageRef.getId());
+        com.google.firebase.firestore.WriteBatch batch = db.batch();
+        batch.set(messageRef, messageData);
+        batch.set(db.collection("messageRateLimits").document(user.getUid()), throttleData,
+                com.google.firebase.firestore.SetOptions.merge());
+        sendingInput.setEnabled(false);
+        batch.commit()
+                .addOnSuccessListener(ignored -> {
+                    if (sendingInput != null) {
+                        if (communityMessageInput == sendingInput && activeCommunityId.equals(mosqueId)) {
+                            sendingInput.setText("");
+                        }
+                        sendingInput.setEnabled(true);
+                    }
+                })
+                .addOnFailureListener(error -> {
+                    if (sendingInput != null) sendingInput.setEnabled(true);
+                    if (communityStatus == sendingStatus && sendingStatus != null) {
+                        String reason = error instanceof com.google.firebase.firestore.FirebaseFirestoreException
+                                && ((com.google.firebase.firestore.FirebaseFirestoreException) error).getCode()
+                                == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED
+                                ? "Wait at least 5 seconds between messages and ensure your email is verified."
+                                : "Check your connection and try again.";
+                        sendingStatus.setText("Message was not sent. " + reason);
+                    }
+                });
+    }
+
+    private void reportCommunityMessage(String mosqueId, String messageId) {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) return;
+        String[] reasons = {"Spam", "Abuse or harassment", "Misleading information", "Other"};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Why are you reporting this message?")
+                .setItems(reasons, (dialog, which) -> {
+                    java.util.Map<String, Object> report = new java.util.HashMap<>();
+                    report.put("reporterUid", user.getUid());
+                    report.put("messageId", messageId);
+                    report.put("reason", reasons[which]);
+                    report.put("createdAt", FieldValue.serverTimestamp());
+                    db.collection("mosques").document(mosqueId).collection("reports")
+                            .document(user.getUid() + "_" + messageId).set(report)
+                            .addOnSuccessListener(reference -> message("Report submitted for administrator review."))
+                            .addOnFailureListener(error -> message("Report was not submitted. Check connection and Firestore rules."));
+                }).show();
+    }
+
+    private void deleteCommunityMessage(String mosqueId, String messageId) {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        if (user == null || db == null) return;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Delete your message?")
+                .setMessage("This action cannot be undone.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (dialog, which) ->
+                        db.collection("mosques").document(mosqueId).collection("messages").document(messageId).delete()
+                                .addOnFailureListener(error -> message("Message was not deleted. Check Firestore rules and connection.")))
+                .show();
+    }
+
+    private void stopCommunityListener() {
+        if (communityListener != null) {
+            communityListener.remove();
+            communityListener = null;
+        }
+        activeCommunityId = "";
+    }
+
+    private void qibla() {
+        LinearLayout c = card();
+        c.addView(text("Qibla direction", 24, ink, true));
+        c.addView(text("The bearing is calculated on-device from your location to the Kaaba. A phone compass is optional; its accuracy depends on the device sensor and calibration.",
+                14, muted, false));
+        compassDial = new CompassDial(this);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, dp(240));
+        cp.topMargin = dp(8);
+        c.addView(compassDial, cp);
+        qiblaHeading = text("Compass heading: —\nQibla bearing: —", 14, ink, true);
+        c.addView(qiblaHeading);
+        qiblaStatus = text("Tap below to calculate the Qibla bearing.", 13, muted, false);
+        c.addView(qiblaStatus);
+        Button b = button("Calculate Qibla from my location");
+        c.addView(b);
+        b.setOnClickListener(v -> {
+            qiblaStatus.setText("Requesting location…");
+            findCurrentLocation(new LocationResult() {
+                @Override public void onSuccess(Location location) {
+                    qiblaBearing = calculateQiblaBearing(location.getLatitude(), location.getLongitude());
+                    qiblaBearingReady = true;
+                    compassDial.setOrientation((float) trueHeading,
+                            (float) normalizeDegrees(qiblaBearing - trueHeading));
+                    qiblaStatus.setText(String.format(Locale.getDefault(),
+                            "Qibla is %.1f° clockwise from true north. Hold the phone flat; rotate until the arrow points up.",
+                            qiblaBearing));
+                    startCompass();
+                }
+                @Override public void onError(String message) {
+                    qiblaStatus.setText("Could not calculate Qibla: " + message);
+                }
+            });
+        });
+        c.addView(gap(8));
+        c.addView(text("Location is used on-device for the bearing. If enabled, the live direction uses your device's compass sensor and magnetic declination correction.",
+                12, muted, false));
+        body.addView(c);
+        startCompass();
+    }
+
+    private double calculateQiblaBearing(double latitude, double longitude) {
+        return PrayerMath.calculateQiblaBearing(latitude, longitude);
+    }
+
+    private double normalizeDegrees(double value) {
+        return PrayerMath.normalizeDegrees(value);
+    }
+
+    private void startCompass() {
+        if (sensorManager == null || !"qibla".equals(tab) || !qiblaBearingReady) return;
+        if (compassSensor == null) {
+            compassSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+            if (compassSensor == null) compassSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
+        }
+        if (compassSensor == null) {
+            if (qiblaStatus != null) qiblaStatus.setText("Qibla bearing is available, but this device has no compatible compass sensor. Use the true-north bearing and an external compass.");
+            return;
+        }
+        sensorManager.registerListener(compassListener, compassSensor, SensorManager.SENSOR_DELAY_UI);
+    }
+
+    private void stopCompass() {
+        if (sensorManager != null) sensorManager.unregisterListener(compassListener);
+    }
+
+    private void findCurrentLocation(LocationResult callback) {
+        boolean fine = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean coarse = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        if (!fine && !coarse) {
+            pendingLocationCallback = callback;
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1001);
+            return;
+        }
+        startLocationLookup(callback);
+    }
+
+    private void startLocationLookup(LocationResult callback) {
+        if (locationManager == null) {
+            callback.onError("Location service is unavailable.");
+            return;
+        }
+        activeLocationCallback = callback;
+        locationRequestCompleted = false;
+        try {
+            Location best = null;
+            for (String provider : locationManager.getProviders(true)) {
+                try {
+                    Location candidate = locationManager.getLastKnownLocation(provider);
+                    if (candidate != null && (best == null || candidate.getTime() > best.getTime())) best = candidate;
+                } catch (SecurityException ignored) { }
+            }
+            if (best != null && System.currentTimeMillis() - best.getTime() < 3 * 60 * 1000L) {
+                finishLocation(best, null);
+                return;
+            }
+
+            activeLocationListener = new LocationListener() {
+                @Override public void onLocationChanged(Location location) { finishLocation(location, null); }
+                @Override public void onStatusChanged(String provider, int status, Bundle extras) { }
+                @Override public void onProviderEnabled(String provider) { }
+                @Override public void onProviderDisabled(String provider) { }
+            };
+            boolean requested = false;
+            for (String provider : locationManager.getProviders(true)) {
+                try {
+                    locationManager.requestLocationUpdates(provider, 0L, 0f, activeLocationListener, Looper.getMainLooper());
+                    requested = true;
+                } catch (SecurityException | IllegalArgumentException ignored) { }
+            }
+            if (!requested) {
+                finishLocation(null, "No location provider is enabled. Turn on device location and try again.");
+                return;
+            }
+            locationTimeout = () -> finishLocation(null, "Location request timed out. Move to an area with a clearer signal and try again.");
+            mainHandler.postDelayed(locationTimeout, 15000L);
+        } catch (SecurityException e) {
+            finishLocation(null, "Location permission was not granted.");
+        } catch (Exception e) {
+            finishLocation(null, "Could not access the device location service.");
+        }
+    }
+
+    private void finishLocation(Location location, String error) {
+        if (locationRequestCompleted) return;
+        locationRequestCompleted = true;
+        if (locationManager != null && activeLocationListener != null) {
+            try { locationManager.removeUpdates(activeLocationListener); } catch (SecurityException ignored) { }
+        }
+        activeLocationListener = null;
+        if (locationTimeout != null) mainHandler.removeCallbacks(locationTimeout);
+        locationTimeout = null;
+        LocationResult callback = activeLocationCallback;
+        activeLocationCallback = null;
+        if (callback == null) return;
+        if (location != null) {
+            activeLocation = location;
+            callback.onSuccess(location);
+        } else {
+            callback.onError(error == null ? "Location is unavailable." : error);
+        }
+    }
+
+    private void enablePrayerReminders() {
+        SharedPreferences prefs = getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE);
+        prefs.edit().putBoolean(PrayerScheduleWorker.KEY_ENABLED, true).apply();
+        if (prefs.contains(PrayerScheduleWorker.KEY_LATITUDE)
+                && prefs.contains(PrayerScheduleWorker.KEY_LONGITUDE)) {
+            PrayerScheduleWorker.enqueueNow(this);
+            if (prayerReminderStatus != null) {
+                prayerReminderStatus.setText("Daily reminders enabled. Android battery policies may delay delivery.");
+            }
+        } else if (prayerReminderStatus != null) {
+            prayerReminderStatus.setText("Reminders are enabled. Tap Get prayer times once to save your location and schedule alerts.");
+        }
+    }
+
+    private void disablePrayerReminders() {
+        getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE)
+                .edit().putBoolean(PrayerScheduleWorker.KEY_ENABLED, false).apply();
+        PrayerScheduleWorker.cancel(this);
+        if (prayerReminderStatus != null) prayerReminderStatus.setText("Prayer reminders are off.");
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == 1002) {
+            boolean granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            if (granted) {
+                enablePrayerReminders();
+            } else {
+                if (prayerReminderToggle != null) prayerReminderToggle.setChecked(false);
+                disablePrayerReminders();
+                if (prayerReminderStatus != null) {
+                    prayerReminderStatus.setText("Notifications were not allowed. Enable them in Android Settings to use prayer reminders.");
+                }
+            }
+            return;
+        }
+        if (requestCode == 1001) {
+            boolean granted = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            LocationResult callback = pendingLocationCallback;
+            pendingLocationCallback = null;
+            if (granted && callback != null) startLocationLookup(callback);
+            else if (callback != null) callback.onError("Location permission was denied.");
+        }
+    }
+
+    private void profile() {
+        FirebaseUser user = auth == null ? null : auth.getCurrentUser();
+        LinearLayout c = card();
+        c.addView(text("Your profile", 23, ink, true));
+        c.addView(text(user == null ? "Signed-in member" : (user.getEmail() == null ? "Signed-in member" : user.getEmail()),
+                13, muted, false));
+
+        nameInput = input("Display name", false);
+        nameInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(60)});
+        locationInput = input("City / province (optional)", false);
+        locationInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(100)});
+        bioInput = input("Short bio (optional)", false);
+        bioInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(180)});
+        c.addView(nameInput);
+        c.addView(locationInput);
+        c.addView(bioInput);
+
+        if (user != null && db != null) {
+            db.collection("users").document(user.getUid()).get().addOnSuccessListener(snapshot -> {
+                if (snapshot.exists() && nameInput != null && locationInput != null && bioInput != null) {
+                    nameInput.setText(snapshot.getString("displayName") == null ? "" : snapshot.getString("displayName"));
+                    locationInput.setText(snapshot.getString("location") == null ? "" : snapshot.getString("location"));
+                    bioInput.setText(snapshot.getString("bio") == null ? "" : snapshot.getString("bio"));
+                }
+            });
+        }
+
+        Button save = button("Save profile");
+        c.addView(save);
+        TextView profileStatus = text("", 13, muted, false);
+        c.addView(profileStatus);
+        save.setOnClickListener(v -> {
+            if (user == null || db == null) { profileStatus.setText("Sign in to save your profile."); return; }
+            String displayName = nameInput.getText().toString().trim();
+            String location = locationInput.getText().toString().trim();
+            String bio = bioInput.getText().toString().trim();
+            if (displayName.isEmpty()) { profileStatus.setText("Enter a display name."); return; }
+            if (displayName.length() > 60 || location.length() > 100 || bio.length() > 180) {
+                profileStatus.setText("Please shorten the profile fields to fit their limits."); return;
+            }
+            java.util.Map<String, Object> profile = new java.util.HashMap<>();
+            profile.put("displayName", displayName);
+            profile.put("location", location);
+            profile.put("bio", bio);
+            profile.put("updatedAt", System.currentTimeMillis());
+            db.collection("users").document(user.getUid()).set(profile,
+                    com.google.firebase.firestore.SetOptions.merge())
+                    .addOnSuccessListener(result -> profileStatus.setText("Profile saved."))
+                    .addOnFailureListener(error -> profileStatus.setText("Could not save profile. Check your connection and Firestore rules."));
+        });
+        body.addView(c);
+        body.addView(gap(12));
+        Button signOut = button("Sign out");
+        signOut.setBackground(round(Color.WHITE, 14));
+        signOut.setTextColor(green);
+        body.addView(signOut);
+        signOut.setOnClickListener(v -> { if (auth != null) auth.signOut(); });
+    }
+
+    private LinearLayout card() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setPadding(dp(16), dp(16), dp(16), dp(16));
+        c.setBackground(round(Color.WHITE, 18));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.bottomMargin = dp(10);
+        c.setLayoutParams(p);
+        return c;
+    }
+
+    private EditText input(String hint, boolean password) {
+        EditText edit = new EditText(this);
+        edit.setSingleLine(!hint.toLowerCase(Locale.ROOT).contains("bio"));
+        edit.setHint(hint);
+        edit.setTextSize(15);
+        edit.setPadding(dp(12), dp(10), dp(12), dp(10));
+        edit.setBackground(round(bg, 12));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.topMargin = dp(10);
+        edit.setLayoutParams(p);
+        if (password) edit.setInputType(129);
+        else if (hint.toLowerCase(Locale.ROOT).contains("email")) edit.setInputType(33);
+        return edit;
+    }
+
+    private Button button(String label) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setAllCaps(false);
+        b.setTextSize(15);
+        b.setTextColor(Color.WHITE);
+        b.setFilterTouchesWhenObscured(true);
+        b.setBackground(round(teal, 14));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.topMargin = dp(8);
+        b.setLayoutParams(p);
+        return b;
+    }
+
+    private TextView text(String value, int size, int color, boolean bold) {
+        TextView t = new TextView(this);
+        t.setText(value);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        t.setGravity(Gravity.START);
+        return t;
+    }
+
+    private View gap(int height) {
+        View v = new View(this);
+        v.setLayoutParams(new LinearLayout.LayoutParams(1, dp(height)));
+        return v;
+    }
+
+    private GradientDrawable round(int color, int radius) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(dp(radius));
+        return d;
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density + .5f);
+    }
+
+    private void message(String message) {
+        if (status != null && status.getParent() != null) status.setText(message);
+        else new android.app.AlertDialog.Builder(this).setMessage(message).setPositiveButton("OK", null).show();
+    }
+
+    private String authMessage(Exception e) {
+        if (e == null || e.getMessage() == null) return "Authentication failed. Check your details and try again.";
+        String raw = e.getMessage();
+        if (raw.contains("email address is badly formatted")) return "Enter a valid email address.";
+        if (raw.contains("password is invalid") || raw.contains("no user record") || raw.contains("INVALID_LOGIN_CREDENTIALS")) return "Email or password is incorrect.";
+        if (raw.contains("email address is already in use")) return "An account already exists for this email.";
+        return "Authentication failed. Check your connection and account settings, then try again.";
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if ("qibla".equals(tab) && qiblaBearingReady) startCompass();
+    }
+
+    @Override protected void onPause() {
+        stopCompass();
+        super.onPause();
+    }
+
+    @Override protected void onDestroy() {
+        stopCompass();
+        stopCommunityListener();
+        if (auth != null && authStateListener != null) {
+            auth.removeAuthStateListener(authStateListener);
+            authStateListener = null;
+        }
+        if (locationManager != null && activeLocationListener != null) {
+            try { locationManager.removeUpdates(activeLocationListener); } catch (SecurityException ignored) { }
+        }
+        mainHandler.removeCallbacksAndMessages(null);
+        ioExecutor.shutdownNow();
+        super.onDestroy();
+    }
+
+    private final class CompassDial extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path arrow = new Path();
+        private float relativeBearing = 0f;
+        private float orientationHeading = 0f;
+
+        CompassDial(Context context) { super(context); setLayerType(View.LAYER_TYPE_SOFTWARE, null); }
+
+        void setOrientation(float heading, float bearing) {
+            orientationHeading = heading;
+            relativeBearing = bearing;
+            invalidate();
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float cx = getWidth() / 2f;
+            float cy = getHeight() / 2f;
+            float radius = Math.min(getWidth(), getHeight()) * 0.38f;
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(2));
+            paint.setColor(green);
+            canvas.drawCircle(cx, cy, radius, paint);
+            paint.setStrokeWidth(dp(1));
+            paint.setColor(Color.rgb(184, 205, 193));
+            for (int i = 0; i < 36; i++) {
+                canvas.save();
+                canvas.rotate(i * 10f - orientationHeading, cx, cy);
+                float inner = radius - (i % 9 == 0 ? dp(16) : dp(8));
+                canvas.drawLine(cx, cy - radius, cx, cy - inner, paint);
+                canvas.restore();
+            }
+            paint.setStyle(Paint.Style.FILL);
+            paint.setTextAlign(Paint.Align.CENTER);
+            paint.setTextSize(sp(14));
+            paint.setTypeface(Typeface.DEFAULT_BOLD);
+            paint.setColor(green);
+            float labelRadius = radius - dp(20);
+            drawCardinal(canvas, "N", 0f, cx, cy, labelRadius, paint);
+            drawCardinal(canvas, "E", 90f, cx, cy, labelRadius, paint);
+            drawCardinal(canvas, "S", 180f, cx, cy, labelRadius, paint);
+            drawCardinal(canvas, "W", 270f, cx, cy, labelRadius, paint);
+
+            canvas.save();
+            canvas.rotate(relativeBearing, cx, cy);
+            arrow.reset();
+            arrow.moveTo(cx, cy - radius * 0.70f);
+            arrow.lineTo(cx - dp(12), cy + dp(12));
+            arrow.lineTo(cx, cy + dp(5));
+            arrow.lineTo(cx + dp(12), cy + dp(12));
+            arrow.close();
+            paint.setColor(teal);
+            canvas.drawPath(arrow, paint);
+            paint.setColor(green);
+            canvas.drawCircle(cx, cy, dp(5), paint);
+            canvas.restore();
+
+            paint.setTextAlign(Paint.Align.CENTER);
+            paint.setTextSize(sp(12));
+            paint.setTypeface(Typeface.DEFAULT);
+            paint.setColor(muted);
+            canvas.drawText("QIBLA", cx, cy + radius + dp(24), paint);
+        }
+
+        private void drawCardinal(Canvas canvas, String label, float bearing,
+                                  float cx, float cy, float radius, Paint labelPaint) {
+            double angle = Math.toRadians(bearing - orientationHeading);
+            float x = cx + radius * (float) Math.sin(angle);
+            float y = cy - radius * (float) Math.cos(angle);
+            canvas.drawText(label, x, y + dp(5), labelPaint);
+        }
+
+        private float sp(float value) {
+            return value * getResources().getDisplayMetrics().scaledDensity;
+        }
+    }
 }
