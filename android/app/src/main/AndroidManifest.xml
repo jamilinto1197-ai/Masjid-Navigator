@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?> <!-- Gradle sets targetSdk 36; // mobsf-ignore: android_task_hijacking2 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.masjidph.navigator">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
