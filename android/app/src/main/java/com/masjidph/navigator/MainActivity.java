@@ -420,7 +420,7 @@ public class MainActivity extends Activity {
         user.sendEmailVerification().addOnCompleteListener(this, task -> {
             Log.i(TAG, "Auth event=verification_email_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
             if (status == null || status.getParent() == null) return;
-                status.setText(task.isSuccessful()
+            status.setText(task.isSuccessful()
                     ? R.string.verification_email_sent
                     : R.string.verification_email_failed);
         });
