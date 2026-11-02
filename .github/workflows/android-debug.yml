@@ -89,6 +89,31 @@ jobs:
             android/app/src/main/AndroidManifest.xml \
             android/app/src/main/res
 
+      - name: Summarize MobSF warning and error findings
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = Path("build/reports/security/mobsfscan.json")
+          if not report.is_file():
+              print("MobSF did not produce a JSON report.")
+              raise SystemExit(0)
+          data = json.loads(report.read_text())
+          results = data.get("results", {})
+          total = 0
+          for rule, finding in results.items():
+              severity = finding.get("metadata", {}).get("severity", "INFO").upper()
+              if severity not in {"WARNING", "ERROR"}:
+                  continue
+              files = finding.get("files", [])
+              total += len(files) or 1
+              for match in files:
+                  print(f"{severity} {rule}: {match.get('file_path', '(no file path)')}")
+          print(f"MobSF actionable finding groups: {total}")
+          PY
+
       - name: Check standalone web/PWA source
         id: web_check
         continue-on-error: true
