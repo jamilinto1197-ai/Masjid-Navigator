@@ -35,6 +35,8 @@ jobs:
   android-security:
     name: Static analysis, dependency audit, and APK checks
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     # Job-level env supports both Actions Variables and Secrets contexts.
     env:
       # Prefer the renamed repository Actions variables/secrets; keep the previous
@@ -247,7 +249,7 @@ jobs:
           retention-days: 7
 
       - name: Publish debug APK to GitHub Releases
-        if: success()
+        if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
