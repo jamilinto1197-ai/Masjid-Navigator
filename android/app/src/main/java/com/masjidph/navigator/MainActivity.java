@@ -716,7 +716,7 @@ public class MainActivity extends Activity {
                 connection.setConnectTimeout(8000);
                 connection.setReadTimeout(8000);
                 connection.setRequestProperty("Accept", "application/vnd.github+json");
-                connection.setRequestProperty("User-Agent", "MasjidPH-Navigator-Android");
+                connection.setRequestProperty("User-Agent", "MasjidPH-Navigator-Android"); // mobsf-ignore: hardcoded_username
                 if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
                     throw new IllegalStateException("Update service unavailable");
                 }
