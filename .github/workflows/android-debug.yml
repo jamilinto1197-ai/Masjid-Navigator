@@ -84,7 +84,7 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p build/reports/security
-          mobsfscan --type android --json -o build/reports/security/mobsfscan.json \
+          mobsfscan --config .mobsf --type android --json -o build/reports/security/mobsfscan.json \
             android/app/src/main/java \
             android/app/src/main/AndroidManifest.xml \
             android/app/src/main/res
