@@ -38,9 +38,9 @@ import java.util.concurrent.TimeUnit;
  */
 public final class PrayerScheduleWorker extends Worker {
     public static final String PREFS_NAME = "prayer_reminders";
-    public static final String KEY_ENABLED = "enabled";
-    public static final String KEY_LATITUDE = "latitude";
-    public static final String KEY_LONGITUDE = "longitude";
+    public static final String KEY_ENABLED = "enabled"; // mobsf-ignore: hardcoded_api_key
+    public static final String KEY_LATITUDE = "latitude"; // mobsf-ignore: hardcoded_api_key
+    public static final String KEY_LONGITUDE = "longitude"; // mobsf-ignore: hardcoded_api_key
     private static final String UNIQUE_WORK = "daily_prayer_schedule";
     private static final String ZONE = "Asia/Manila";
     private static final String[] PRAYERS = {"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"};
