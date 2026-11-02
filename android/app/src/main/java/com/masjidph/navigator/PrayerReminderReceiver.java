@@ -10,7 +10,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.os.Build;
 
 public final class PrayerReminderReceiver extends BroadcastReceiver {
     private static final String CHANNEL_ID = "daily_prayer_reminders";
@@ -45,10 +44,8 @@ public final class PrayerReminderReceiver extends BroadcastReceiver {
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
-        if (Build.VERSION.SDK_INT >= 26) {
-            manager.createNotificationChannel(new NotificationChannel(
-                    CHANNEL_ID, "Daily prayer reminders", NotificationManager.IMPORTANCE_DEFAULT));
-        }
+        manager.createNotificationChannel(new NotificationChannel(
+            CHANNEL_ID, "Daily prayer reminders", NotificationManager.IMPORTANCE_DEFAULT));
 
         Intent openApp = new Intent(context, MainActivity.class);
         openApp.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -81,11 +78,7 @@ public final class PrayerReminderReceiver extends BroadcastReceiver {
         // Clear a previous schedule first so moving location/time cannot leave
         // an obsolete reminder active when the new prayer time has already passed.
         alarms.cancel(pending);
-        if (Build.VERSION.SDK_INT >= 23) {
-            alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, atMillis, pending);
-        } else {
-            alarms.set(android.app.AlarmManager.RTC_WAKEUP, atMillis, pending);
-        }
+        alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, atMillis, pending);
     }
 
     static void cancelAll(Context context) {

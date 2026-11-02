@@ -314,7 +314,7 @@ public class MainActivity extends Activity {
         if (root == null) showRoot();
         body.removeAllViews();
         if (nav != null) { root.removeView(nav); nav = null; }
-        headerSubtitle.setText("Your Philippine Muslim community");
+        headerSubtitle.setText(R.string.login_subtitle);
 
         LinearLayout hero = card();
         hero.setBackground(round(green, 22));
@@ -355,7 +355,7 @@ public class MainActivity extends Activity {
 
         FirebaseUser currentUser = auth == null ? null : auth.getCurrentUser();
         if (requiresEmailVerification(currentUser)) {
-            status.setText("Your email is not verified yet. Verify it using the link in your inbox before opening your account.");
+            status.setText(R.string.email_not_verified);
 
             Button resendVerification = button("Resend verification email");
             resendVerification.setBackground(round(Color.WHITE, 14));
@@ -407,22 +407,22 @@ public class MainActivity extends Activity {
         if (lastSentAt > 0L && remaining > 0L) {
             long remainingSeconds = Math.max(1L, (remaining + 999L) / 1000L);
             if (status != null) {
-                status.setText("Please wait " + remainingSeconds
-                        + " seconds before requesting another verification email.");
+                status.setText(getResources().getQuantityString(
+                    R.plurals.verification_wait_seconds, (int) remainingSeconds, remainingSeconds));
             }
             return;
         }
 
         long requestStartedAt = System.currentTimeMillis();
         prefs.edit().putLong(LAST_VERIFICATION_EMAIL_SENT_AT, requestStartedAt).apply();
-        if (status != null) status.setText("Sending verification email…");
+        if (status != null) status.setText(R.string.verification_sending);
         Log.i(TAG, "Auth event=verification_email_requested");
         user.sendEmailVerification().addOnCompleteListener(this, task -> {
             Log.i(TAG, "Auth event=verification_email_result success=" + task.isSuccessful() + (task.isSuccessful() ? "" : " " + authErrorSummary(task.getException())));
             if (status == null || status.getParent() == null) return;
-            status.setText(task.isSuccessful()
-                    ? "Verification email sent. Open the link in your inbox, then return and tap “I've verified my email”."
-                    : "Could not send the verification email. Check your connection and try again later.");
+                status.setText(task.isSuccessful()
+                    ? R.string.verification_email_sent
+                    : R.string.verification_email_failed);
         });
     }
 
@@ -431,19 +431,19 @@ public class MainActivity extends Activity {
             message("Sign in again to check email verification.");
             return;
         }
-        if (status != null) status.setText("Checking your email verification…");
+        if (status != null) status.setText(R.string.verification_checking);
         user.reload().addOnCompleteListener(this, reloadTask -> {
             FirebaseUser refreshedUser = auth.getCurrentUser();
             if (!reloadTask.isSuccessful() || refreshedUser == null
                     || !refreshedUser.getUid().equals(user.getUid())) {
                 if (status != null && status.getParent() != null) {
-                    status.setText("Could not refresh your account. Check your connection and try again.");
+                    status.setText(R.string.verification_refresh_failed);
                 }
                 return;
             }
             if (!refreshedUser.isEmailVerified()) {
                 if (status != null && status.getParent() != null) {
-                    status.setText("Your email still appears unverified. Open the verification link from your inbox, then try again.");
+                    status.setText(R.string.verification_still_pending);
                 }
                 return;
             }
@@ -455,12 +455,12 @@ public class MainActivity extends Activity {
                                 && signedInUser.isEmailVerified()) {
                             showApp();
                         } else if (status != null && status.getParent() != null) {
-                            status.setText("Your account changed while checking verification. Please sign in again.");
+                            status.setText(R.string.verification_account_changed);
                         }
                     })
                     .addOnFailureListener(error -> {
                         if (status != null && status.getParent() != null) {
-                            status.setText("Your email is verified, but the security token could not refresh. Check your connection and try again.");
+                            status.setText(R.string.verification_token_refresh_failed);
                         }
                     });
         });
@@ -475,7 +475,7 @@ public class MainActivity extends Activity {
             return;
         }
         Log.i(TAG, "Auth event=" + (create ? "email_registration_started" : "email_signin_started"));
-        status.setText(create ? "Creating your account…" : "Signing in…");
+        status.setText(create ? R.string.auth_creating_account : R.string.auth_signing_in);
         if (create) {
             auth.createUserWithEmailAndPassword(email, pass).addOnCompleteListener(this, task -> {
                 if (!task.isSuccessful()) {
@@ -527,7 +527,7 @@ public class MainActivity extends Activity {
             return;
         }
         Log.i(TAG, "Auth event=google_signin_started");
-        if (status != null) status.setText("Opening Google sign-in…");
+        if (status != null) status.setText(R.string.google_sign_in_opening);
         try {
             if (googleSignInClient == null) {
                 GoogleSignInOptions options = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -539,7 +539,7 @@ public class MainActivity extends Activity {
             startActivityForResult(googleSignInClient.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
         } catch (Exception e) {
             Log.w(TAG, "Auth event=google_signin_start_failed exception=" + e.getClass().getSimpleName());
-            if (status != null) status.setText("Could not start Google sign-in. Verify the app's OAuth configuration.");
+            if (status != null) status.setText(R.string.google_sign_in_start_failed);
         }
     }
 
@@ -558,7 +558,7 @@ public class MainActivity extends Activity {
                 message("Google did not return an ID token. Verify the Web OAuth client ID and Android signing fingerprints.");
                 return;
             }
-            if (status != null) status.setText("Signing in with Firebase…");
+            if (status != null) status.setText(R.string.google_sign_in_firebase_pending);
             AuthCredential credential = GoogleAuthProvider.getCredential(account.getIdToken(), null);
             auth.signInWithCredential(credential).addOnCompleteListener(this, signInTask -> {
                 Log.i(TAG, "Auth event=google_firebase_signin_result success=" + signInTask.isSuccessful()
@@ -583,7 +583,7 @@ public class MainActivity extends Activity {
         if (root == null) showRoot();
         if (nav != null) root.removeView(nav);
         nav = null;
-        headerSubtitle.setText("Your masjid and salah companion");
+        headerSubtitle.setText(R.string.home_subtitle);
         renderTab(tab);
         buildNav();
     }
@@ -627,11 +627,11 @@ public class MainActivity extends Activity {
         body.removeAllViews();
         tab = which;
         switch (which) {
-            case "home": headerSubtitle.setText("Your masjid and salah companion"); home(); break;
-            case "explore": headerSubtitle.setText("Discover masjids near you"); explore(); break;
-            case "community": headerSubtitle.setText("Conversations rooted in your local masjid"); community(); break;
-            case "qibla": headerSubtitle.setText("Find the direction to Makkah"); qibla(); break;
-            case "profile": headerSubtitle.setText("Your community identity"); profile(); break;
+            case "home": headerSubtitle.setText(R.string.home_subtitle); home(); break;
+            case "explore": headerSubtitle.setText(R.string.explore_subtitle); explore(); break;
+            case "community": headerSubtitle.setText(R.string.community_subtitle); community(); break;
+            case "qibla": headerSubtitle.setText(R.string.qibla_subtitle); qibla(); break;
+            case "profile": headerSubtitle.setText(R.string.profile_subtitle); profile(); break;
             default: tab = "home"; home();
         }
     }
@@ -672,7 +672,7 @@ public class MainActivity extends Activity {
 
         LinearLayout reminderCard = card();
         prayerReminderToggle = new CheckBox(this);
-        prayerReminderToggle.setText("Enable daily prayer reminders");
+        prayerReminderToggle.setText(R.string.prayer_reminders_enable);
         prayerReminderToggle.setTextColor(ink);
         SharedPreferences reminderPrefs = getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE);
         boolean remindersEnabled = reminderPrefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false);
@@ -706,7 +706,7 @@ public class MainActivity extends Activity {
 
     private void checkForAppUpdate(Button updateButton, TextView updateStatus) {
         updateButton.setEnabled(false);
-        updateButton.setText("Checking…");
+        updateButton.setText(R.string.update_checking);
         ioExecutor.execute(() -> {
             HttpURLConnection connection = null;
             try {
@@ -746,12 +746,12 @@ public class MainActivity extends Activity {
                 mainHandler.post(() -> {
                     updateButton.setEnabled(true);
                     if (latestCode > installedCode) {
-                        updateStatus.setText("Update available: " + tag + " (version code " + latestCode + ").");
-                        updateButton.setText("Download update");
+                        updateStatus.setText(getString(R.string.update_available, tag, latestCode));
+                        updateButton.setText(R.string.update_download);
                         updateButton.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl))));
                     } else {
-                        updateStatus.setText("You're using the latest version (" + tag + ").");
-                        updateButton.setText("Check again");
+                        updateStatus.setText(getString(R.string.update_latest_version, tag));
+                        updateButton.setText(R.string.update_check_again);
                         updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
                     }
                 });
@@ -759,8 +759,8 @@ public class MainActivity extends Activity {
                 Log.w(TAG, "App update check failed", e);
                 mainHandler.post(() -> {
                     updateButton.setEnabled(true);
-                    updateButton.setText("Try again");
-                    updateStatus.setText("Couldn't check for updates. Check your connection and try again.");
+                    updateButton.setText(R.string.update_try_again);
+                    updateStatus.setText(R.string.update_check_failed);
                     updateButton.setOnClickListener(v -> checkForAppUpdate(updateButton, updateStatus));
                 });
             } finally {
@@ -770,16 +770,16 @@ public class MainActivity extends Activity {
     }
 
     private void loadPrayerTimes() {
-        if (prayerStatus != null) prayerStatus.setText("Requesting your location…");
-        if (prayerTimes != null) prayerTimes.setText("Getting today's prayer times…");
+        if (prayerStatus != null) prayerStatus.setText(R.string.prayer_location_requesting);
+        if (prayerTimes != null) prayerTimes.setText(R.string.prayer_times_loading);
         findCurrentLocation(new LocationResult() {
             @Override public void onSuccess(Location location) {
-                if (prayerStatus != null) prayerStatus.setText("Fetching estimated times for your coordinates…");
+                if (prayerStatus != null) prayerStatus.setText(R.string.prayer_times_fetching_estimates);
                 fetchPrayerTimes(location);
             }
             @Override public void onError(String message) {
-                if (prayerStatus != null) prayerStatus.setText("Couldn't get your location: " + message);
-                if (prayerTimes != null) prayerTimes.setText("Prayer times are unavailable until location access succeeds.");
+                if (prayerStatus != null) prayerStatus.setText(getString(R.string.prayer_location_failed, message));
+                if (prayerTimes != null) prayerTimes.setText(R.string.prayer_times_location_required);
             }
         });
     }
@@ -793,7 +793,7 @@ public class MainActivity extends Activity {
         if (reminderPrefs.getBoolean(PrayerScheduleWorker.KEY_ENABLED, false)) {
             PrayerScheduleWorker.enqueueNow(this);
             if (prayerReminderStatus != null) {
-                prayerReminderStatus.setText("Updating your daily prayer reminders from this location…");
+                prayerReminderStatus.setText(R.string.prayer_reminders_updating_location);
             }
         }
         ioExecutor.execute(() -> {
@@ -835,12 +835,12 @@ public class MainActivity extends Activity {
                         + "Isha      " + cleanTime(timings.optString("Isha"));
                 runOnUiThread(() -> {
                     if (prayerTimes != null) prayerTimes.setText(result);
-                    if (prayerStatus != null) prayerStatus.setText("Estimated for your current location · Asia/Manila.");
+                    if (prayerStatus != null) prayerStatus.setText(R.string.prayer_times_estimated_location_manila);
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
-                    if (prayerStatus != null) prayerStatus.setText("Could not fetch prayer times. Check your connection and try again.");
-                    if (prayerTimes != null) prayerTimes.setText("Today's prayer times couldn't be loaded. Tap the button to retry.");
+                    if (prayerStatus != null) prayerStatus.setText(R.string.prayer_times_fetch_failed);
+                    if (prayerTimes != null) prayerTimes.setText(R.string.prayer_times_load_failed);
                 });
             } finally {
                 if (connection != null) connection.disconnect();
@@ -871,7 +871,7 @@ public class MainActivity extends Activity {
                 }
                 @Override public void onError(String message) {
                     if (mosqueLocateButton != null) mosqueLocateButton.setEnabled(true);
-                    if (mosqueStatus != null) mosqueStatus.setText("Could not get location: " + message);
+                    if (mosqueStatus != null) mosqueStatus.setText(getString(R.string.mosque_location_failed, message));
                 }
             });
         });
@@ -902,7 +902,7 @@ public class MainActivity extends Activity {
 
         if (db != null && !mosqueLoadRequested) {
             mosqueLoadRequested = true;
-            mosqueStatus.setText("Loading mosque directory…");
+            mosqueStatus.setText(R.string.mosque_directory_loading);
             db.collection("mosques").limit(250).get().addOnSuccessListener(snapshot -> {
                 if (!snapshot.isEmpty()) {
                     List<MosqueItem> loaded = new ArrayList<>();
@@ -918,21 +918,22 @@ public class MainActivity extends Activity {
                     }
                     mosqueItems.clear();
                     mosqueItems.addAll(loaded);
-                    if (mosqueStatus != null) mosqueStatus.setText("Loaded " + loaded.size() + " mosque listings from Firestore. Verify details before travel.");
+                        if (mosqueStatus != null) mosqueStatus.setText(getResources().getQuantityString(
+                            R.plurals.mosque_listings_loaded, loaded.size(), loaded.size()));
                 } else {
                     mosqueLoadRequested = false;
                     if (mosqueStatus != null) {
-                        mosqueStatus.setText("Firestore has no mosque records yet. Showing starter listings that need local verification.");
+                        mosqueStatus.setText(R.string.mosque_directory_empty);
                     }
                 }
                 renderMosqueResults();
             }).addOnFailureListener(error -> {
                 mosqueLoadRequested = false;
-                if (mosqueStatus != null) mosqueStatus.setText("Firestore is unavailable. Showing starter listings that need local verification.");
+                if (mosqueStatus != null) mosqueStatus.setText(R.string.mosque_directory_unavailable);
                 renderMosqueResults();
             });
         } else if (db == null && mosqueStatus != null) {
-            mosqueStatus.setText("Firebase is not configured. Showing local starter listings; cloud listings are unavailable.");
+            mosqueStatus.setText(R.string.firebase_local_mosques_only);
         }
     }
 
@@ -1244,7 +1245,7 @@ public class MainActivity extends Activity {
         body.addView(chatCard);
 
         if (db == null || auth == null || auth.getCurrentUser() == null) {
-            communityStatus.setText("Community chat requires Firebase configuration and a signed-in account.");
+            communityStatus.setText(R.string.community_firebase_login_required);
             communityMessageList.removeAllViews();
             communityMessageList.addView(text("No chat connection.", 14, muted, false));
             return;
@@ -1281,16 +1282,17 @@ public class MainActivity extends Activity {
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             communitySpinner.setAdapter(adapter);
             if (rooms.isEmpty()) {
-                communityStatus.setText("No mosque documents are published in Firestore yet. Chat rooms appear here once the directory is configured.");
+                communityStatus.setText(R.string.community_no_mosques);
                 communityMessageList.removeAllViews();
                 communityMessageList.addView(text("Chat is unavailable because no masjid rooms are published yet. Please try again after the directory is set up.", 14, ink, false));
                 communityMessageInput.setEnabled(false);
                 communityMessageInput.setHint("Chat unavailable — no masjid rooms");
                 send.setEnabled(false);
-                send.setText("Chat unavailable");
+                send.setText(R.string.chat_unavailable);
                 return;
             }
-            communityStatus.setText("Loaded " + rooms.size() + " community room(s). Select a masjid to read and send messages.");
+                communityStatus.setText(getResources().getQuantityString(
+                    R.plurals.community_rooms_loaded, rooms.size(), rooms.size()));
             communitySpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                     if (position >= 0 && position < communityMosques.size()) loadCommunityMessages(communityMosques.get(position));
@@ -1301,13 +1303,13 @@ public class MainActivity extends Activity {
             });
             loadCommunityMessages(rooms.get(0));
         }).addOnFailureListener(error -> {
-            communityStatus.setText("Could not load community rooms. Check Firebase configuration and Firestore read rules.");
+            communityStatus.setText(R.string.community_rooms_load_failed);
             communityMessageList.removeAllViews();
             communityMessageList.addView(text("The directory is unavailable.", 14, muted, false));
             communityMessageInput.setEnabled(false);
             communityMessageInput.setHint("Chat unavailable — directory failed to load");
             send.setEnabled(false);
-            send.setText("Chat unavailable");
+            send.setText(R.string.chat_unavailable);
         });
     }
 
@@ -1371,7 +1373,7 @@ public class MainActivity extends Activity {
                                     ? firstNonEmpty(messageSnapshot.getString("text"), "Message text unavailable", "")
                                     : "The reported message no longer exists.";
                             preview.setText(messageText);
-                        }).addOnFailureListener(error -> preview.setText("Message preview unavailable."));
+                        }).addOnFailureListener(error -> preview.setText(R.string.message_preview_unavailable));
 
                         Button dismiss = button("Dismiss report");
                         dismiss.setOnClickListener(v -> new android.app.AlertDialog.Builder(MainActivity.this)
@@ -1525,7 +1527,7 @@ public class MainActivity extends Activity {
                                 == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED
                                 ? "Wait at least 5 seconds between messages and ensure your email is verified."
                                 : "Check your connection and try again.";
-                        sendingStatus.setText("Message was not sent. " + reason);
+                        sendingStatus.setText(getString(R.string.message_send_failed, reason));
                     }
                 });
     }
@@ -1586,7 +1588,7 @@ public class MainActivity extends Activity {
         Button b = button("Calculate Qibla from my location");
         c.addView(b);
         b.setOnClickListener(v -> {
-            qiblaStatus.setText("Requesting location…");
+            qiblaStatus.setText(R.string.qibla_location_requesting);
             findCurrentLocation(new LocationResult() {
                 @Override public void onSuccess(Location location) {
                     qiblaBearing = calculateQiblaBearing(location.getLatitude(), location.getLongitude());
@@ -1599,7 +1601,7 @@ public class MainActivity extends Activity {
                     startCompass();
                 }
                 @Override public void onError(String message) {
-                    qiblaStatus.setText("Could not calculate Qibla: " + message);
+                    qiblaStatus.setText(getString(R.string.qibla_calculation_failed, message));
                 }
             });
         });
@@ -1625,7 +1627,7 @@ public class MainActivity extends Activity {
             if (compassSensor == null) compassSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
         }
         if (compassSensor == null) {
-            if (qiblaStatus != null) qiblaStatus.setText("Qibla bearing is available, but this device has no compatible compass sensor. Use the true-north bearing and an external compass.");
+            if (qiblaStatus != null) qiblaStatus.setText(R.string.qibla_compass_missing);
             return;
         }
         sensorManager.registerListener(compassListener, compassSensor, SensorManager.SENSOR_DELAY_UI);
@@ -1719,10 +1721,10 @@ public class MainActivity extends Activity {
                 && prefs.contains(PrayerScheduleWorker.KEY_LONGITUDE)) {
             PrayerScheduleWorker.enqueueNow(this);
             if (prayerReminderStatus != null) {
-                prayerReminderStatus.setText("Daily reminders enabled. Android battery policies may delay delivery.");
+                prayerReminderStatus.setText(R.string.prayer_reminders_enabled_daily);
             }
         } else if (prayerReminderStatus != null) {
-            prayerReminderStatus.setText("Reminders are enabled. Tap Get prayer times once to save your location and schedule alerts.");
+            prayerReminderStatus.setText(R.string.prayer_reminders_enabled);
         }
     }
 
@@ -1730,20 +1732,23 @@ public class MainActivity extends Activity {
         getSharedPreferences(PrayerScheduleWorker.PREFS_NAME, MODE_PRIVATE)
                 .edit().putBoolean(PrayerScheduleWorker.KEY_ENABLED, false).apply();
         PrayerScheduleWorker.cancel(this);
-        if (prayerReminderStatus != null) prayerReminderStatus.setText("Prayer reminders are off.");
+        if (prayerReminderStatus != null) prayerReminderStatus.setText(R.string.prayer_reminders_off);
     }
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == 1002) {
-            boolean granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            boolean granted = true;
+            if (Build.VERSION.SDK_INT >= 33) {
+                granted = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            }
             if (granted) {
                 enablePrayerReminders();
             } else {
                 if (prayerReminderToggle != null) prayerReminderToggle.setChecked(false);
                 disablePrayerReminders();
                 if (prayerReminderStatus != null) {
-                    prayerReminderStatus.setText("Notifications were not allowed. Enable them in Android Settings to use prayer reminders.");
+                    prayerReminderStatus.setText(R.string.notification_permission_denied);
                 }
             }
             return;
@@ -1790,13 +1795,13 @@ public class MainActivity extends Activity {
         TextView profileStatus = text("", 13, muted, false);
         c.addView(profileStatus);
         save.setOnClickListener(v -> {
-            if (user == null || db == null) { profileStatus.setText("Sign in to save your profile."); return; }
+            if (user == null || db == null) { profileStatus.setText(R.string.profile_sign_in_to_save); return; }
             String displayName = nameInput.getText().toString().trim();
             String location = locationInput.getText().toString().trim();
             String bio = bioInput.getText().toString().trim();
-            if (displayName.isEmpty()) { profileStatus.setText("Enter a display name."); return; }
+            if (displayName.isEmpty()) { profileStatus.setText(R.string.profile_enter_display_name); return; }
             if (displayName.length() > 60 || location.length() > 100 || bio.length() > 180) {
-                profileStatus.setText("Please shorten the profile fields to fit their limits."); return;
+                profileStatus.setText(R.string.profile_fields_too_long); return;
             }
             java.util.Map<String, Object> profile = new java.util.HashMap<>();
             profile.put("displayName", displayName);
@@ -1805,8 +1810,8 @@ public class MainActivity extends Activity {
             profile.put("updatedAt", System.currentTimeMillis());
             db.collection("users").document(user.getUid()).set(profile,
                     com.google.firebase.firestore.SetOptions.merge())
-                    .addOnSuccessListener(result -> profileStatus.setText("Profile saved."))
-                    .addOnFailureListener(error -> profileStatus.setText("Could not save profile. Check your connection and Firestore rules."));
+                    .addOnSuccessListener(result -> profileStatus.setText(R.string.profile_saved))
+                    .addOnFailureListener(error -> profileStatus.setText(R.string.profile_save_failed));
         });
         body.addView(c);
         body.addView(gap(12));
