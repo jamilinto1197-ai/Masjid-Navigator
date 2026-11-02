@@ -34,7 +34,7 @@ concurrency:
 jobs:
   android-security:
     name: Static analysis, dependency audit, and APK checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     # Job-level env supports both Actions Variables and Secrets contexts.
